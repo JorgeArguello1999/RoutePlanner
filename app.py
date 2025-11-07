@@ -6,6 +6,7 @@ from flask import Flask
 from routers.index import home_page
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = getenv('SECRET_KEY')
 
 app.register_blueprint(home_page)
 
