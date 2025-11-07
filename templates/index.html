@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoutePlanner - Navigate Smarter, Travel Better</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='imgs/logo_favicon.png') }}" type="image/x-icon">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+                <span>RoutePlanner</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/details">Details</a>
+                <a href="/signin">Sign In</a>
+                <a href="/signup" class="btn-signup">Sign Up</a>
+            </div>
+
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="/details">Details</a>
+            <a href="/signin">Sign In</a>
+            <a href="/signup">Sign Up</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Navigate Smarter,<br>Travel Better</h1>
+        <p>Calculate optimal routes across all transportation modes with our intelligent routing algorithm</p>
+        <div class="hero-buttons">
+            <a href="/signup" class="btn-primary">
+                Get Started
+                <span class="arrow-icon">→</span>
+            </a>
+            <a href="/details" class="btn-secondary">Learn More</a>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <div class="demo-container">
+        <div class="demo-card" id="demoCard">
+            <div class="demo-header">
+                <h3>Live Route Demo</h3>
+                <span class="route-type" id="routeType">Driving</span>
+            </div>
+
+            <div class="route-point">
+                <div class="route-icon from">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <div class="route-info">
+                    <h4>From</h4>
+                    <p id="routeFrom">New York, NY</p>
+                </div>
+            </div>
+
+            <div class="route-line">
+                <div class="route-progress"></div>
+            </div>
+
+            <div class="route-point">
+                <div class="route-icon to">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <div class="route-info">
+                    <h4>To</h4>
+                    <p id="routeTo">Boston, MA</p>
+                </div>
+            </div>
+
+            <div class="route-stats">
+                <div class="stat">
+                    <h4>Distance</h4>
+                    <p id="routeDistance">215 miles</p>
+                </div>
+                <div class="stat">
+                    <h4>Duration</h4>
+                    <p id="routeDuration">3h 45m</p>
+                </div>
+            </div>
+
+            <div class="route-indicators">
+                <div class="indicator active" onclick="changeRoute(0)"></div>
+                <div class="indicator" onclick="changeRoute(1)"></div>
+                <div class="indicator" onclick="changeRoute(2)"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="features-container">
+            <div class="features-header">
+                <h2>Powerful Features</h2>
+                <p>Everything you need to plan the perfect journey</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                        </svg>
+                    </div>
+                    <h3>Multi-Modal Routes</h3>
+                    <p>Calculate routes for driving, public transit, walking, cycling, and flights</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Real-Time Updates</h3>
+                    <p>Get accurate travel times with live traffic and transit data</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                    <h3>Smart Optimization</h3>
+                    <p>Advanced algorithms find the fastest and most efficient paths</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    </div>
+                    <h3>Multiple Destinations</h3>
+                    <p>Plan complex routes with multiple stops and waypoints</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <h2>Ready to Start Your Journey?</h2>
+        <p>Join thousands of users optimizing their travel routes every day</p>
+        <a href="/signup" class="btn-cta">
+            Create Free Account
+            <span class="arrow-icon">→</span>
+        </a>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>RoutePlanner</span>
+        </div>
+        <p>© 2024 RoutePlanner. University Project. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+</html>
