@@ -20,8 +20,8 @@
             
             <div class="nav-links">
                 <a href="/details">Details</a>
-                <a href="/signin">Sign In</a>
-                <a href="/signup" class="btn-signup">Sign Up</a>
+                <a href="{{ url_for('users.signin') }}">Sign In</a>
+                <a href="{{ url_for('users.signup') }}" class="btn-signup">Sign Up</a>
             </div>
 
             <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
@@ -35,8 +35,8 @@
 
         <div class="mobile-menu" id="mobileMenu">
             <a href="/details">Details</a>
-            <a href="/signin">Sign In</a>
-            <a href="/signup">Sign Up</a>
+            <a href="{{ url_for('users.signin') }}">Sign In</a>
+            <a href="{{ url_for('users.signup') }}">Sign Up</a>
         </div>
     </nav>
 
@@ -45,7 +45,7 @@
         <h1>Navigate Smarter,<br>Travel Better</h1>
         <p>Calculate optimal routes across all transportation modes with our intelligent routing algorithm</p>
         <div class="hero-buttons">
-            <a href="/signup" class="btn-primary">
+            <a href="{{ url_for('users.signup') }}" class="btn-primary">
                 Get Started
                 <span class="arrow-icon">→</span>
             </a>
@@ -168,7 +168,7 @@
     <section class="cta">
         <h2>Ready to Start Your Journey?</h2>
         <p>Join thousands of users optimizing their travel routes every day</p>
-        <a href="/signup" class="btn-cta">
+        <a href="{{ url_for('users.signup') }}" class="btn-cta">
             Create Free Account
             <span class="arrow-icon">→</span>
         </a>
