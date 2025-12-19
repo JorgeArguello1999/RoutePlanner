@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión</title>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; }
+        .container { max-width: 400px; margin: 0 auto; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: .5rem; }
+        input { width: 100%; padding: .5rem; box-sizing: border-box; }
+        button { width: 100%; padding: .7rem; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        
+        /* Estilos para las alertas */
+        .alert { padding: 1rem; margin-bottom: 1rem; border-radius: 5px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Estilo para enlace de registro */
+        .register-link { text-align: center; margin-top: 1.5rem; font-size: 0.9em; }
+        .register-link a { color: #007bff; text-decoration: none; }
+        .register-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Iniciar Sesión</h2>
+
+    {% if message %}
+        {% if message == "Signin successful" %}
+            <div class="alert alert-success">
+                ✅ {{ message }}
+            </div>
+        {% else %}
+            <div class="alert alert-error">
+                ⚠️ {{ message }}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <form method="POST" action="">
+        <div class="form-group">
+            <label for="username">Usuario:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+
+        <button type="submit">Ingresar</button>
+    </form>
+
+    <div class="register-link">
+        ¿No tienes cuenta? <a href="{{ url_for('users.signup') }}">Regístrate aquí</a>
+    </div>
+</div>
+
+</body>
+</html>

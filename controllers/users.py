@@ -18,6 +18,23 @@ class UserSignupResponse(TypedDict):
     email: str
     message: Literal["User created successfully", "Username already exists"]
 
+# GET / Signin Page / Handler
+def signin_page(request_form):
+    """ Render the signin page """
+    if request_form.method == 'GET':
+        return render_template(f"{TEMPLATES_DIR}signin.html")
+
+    elif request_form.method == 'POST':
+        username = request_form.form.get('username')
+        password = request_form.form.get('password')
+        user = User.query.filter_by(username=username).first()
+
+        message = "Invalid username or password"
+        if user and user.check_password(password):
+            message = "Signin successful"
+
+        return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
+
 # GET / Signup Page / Handler
 def signup_page(request_form):
     """ Render the signup page """
@@ -33,7 +50,7 @@ def signup_page(request_form):
 
 # POST / Create User
 def create_user(username: str, email: str, password: str) -> UserSignupResponse:
-    """ """
+    """ Create a new user in the database """
     try:
         if User.query.filter_by(username=username).first():
             raise Exception("Username already exists")
