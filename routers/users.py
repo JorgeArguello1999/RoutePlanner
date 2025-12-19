@@ -1,13 +1,13 @@
 from flask import Blueprint
-from controllers.users import create_user
+from flask import request
+from controllers import users as us 
 
 users = Blueprint('users', __name__, url_prefix='/users')
 
-@users.route('/signin', endpoint='signin')
+@users.route('/signup', endpoint='signup', methods=['GET', 'POST'])
 def users_home():
-    create_user()
-    return "Users Home Page"
-
-@users.route('/signup', endpoint='signup')
-def users_signup():
-    return "Users Signup Page"
+    try: 
+        return us.signup_page(request)
+    except Exception as e:
+        print(e)
+        return "An error occurred", 500
