@@ -1,5 +1,7 @@
 # Flask 
 from flask import render_template
+from flask import session
+from flask import redirect
 
 # Models 
 from models.users import User
@@ -32,8 +34,12 @@ def signin_page(request_form):
         message = "Invalid username or password"
         if user and user.check_password(password):
             message = "Signin successful"
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role.value
 
-        return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
+        # return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
+        return redirect('/dashboard')
 
 # GET / Signup Page / Handler
 def signup_page(request_form):

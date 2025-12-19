@@ -31,6 +31,9 @@
         {% if result['message'] == "User created successfully" %}
             <div class="alert alert-success">
                 ✅ {{ result['message'] }}
+                <button>
+                    <a href="{{ url_for('users.signin') }}">Iniciar Sesión</a>
+                </button>
             </div>
         {% else %}
             <div class="alert alert-error">
@@ -39,7 +42,7 @@
         {% endif %}
     {% endif %}
 
-    <form method="POST" action="/users/signup">
+    <form method="POST" action="">
         <div class="form-group">
             <label for="username">Usuario:</label>
             <input type="text" id="username" name="username" 
