@@ -1,5 +1,5 @@
 # Flask 
-from flask import render_template
+from flask import render_template, url_for
 from flask import session
 from flask import redirect
 
@@ -88,3 +88,8 @@ def create_user(username: str, email: str, password: str) -> UserSignupResponse:
     
     finally:
         db.session.close()
+
+def signout_page(request):
+    """ Sign out the current user """
+    session.clear()
+    return redirect(url_for('home_page.home'))
