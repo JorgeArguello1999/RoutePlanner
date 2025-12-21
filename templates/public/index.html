@@ -19,7 +19,7 @@
             </a>
             
             <div class="nav-links">
-                <a href="/details">Details</a>
+                <a href="{{ url_for('home_page.about') }}">About</a>
                 <a href="{{ url_for('users.signin') }}">Sign In</a>
                 <a href="{{ url_for('users.signup') }}" class="btn-signup">Sign Up</a>
             </div>
@@ -34,7 +34,7 @@
         </div>
 
         <div class="mobile-menu" id="mobileMenu">
-            <a href="/details">Details</a>
+            <a href="{{ url_for('home_page.about') }}">About</a>
             <a href="{{ url_for('users.signin') }}">Sign In</a>
             <a href="{{ url_for('users.signup') }}">Sign Up</a>
         </div>
@@ -49,7 +49,7 @@
                 Get Started
                 <span class="arrow-icon">→</span>
             </a>
-            <a href="/details" class="btn-secondary">Learn More</a>
+            <a href="{{ url_for('home_page.about') }}" class="btn-secondary">Learn More</a>
         </div>
     </section>
 
