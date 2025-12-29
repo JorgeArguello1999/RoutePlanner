@@ -2,6 +2,7 @@ import os
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
+    ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = True

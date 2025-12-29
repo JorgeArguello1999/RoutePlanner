@@ -16,6 +16,7 @@ def init_db(app):
     # We still need the app context to import models so Alembic detects them
     with app.app_context():
         from models.users import User
+        from models.api_storage import API_Storage
         # Import other models here...
 
         # NOTE: When using migrations, we usually DISABLE db.create_all()
