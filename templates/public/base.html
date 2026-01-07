@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RoutePlanner - Navigate Smarter, Travel Better{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='imgs/logo_favicon.png') }}" type="image/x-icon">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+                <span>RoutePlanner</span>
+            </a>
+
+            <div class="nav-links">
+                <a href="{{ url_for('home_page.about') }}" class="{% block nav_about %}{% endblock %}">About</a>
+                <a href="{{ url_for('users.signin') }}">Sign In</a>
+                <a href="{{ url_for('users.signup') }}" class="btn-signup">Sign Up</a>
+            </div>
+
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="{{ url_for('home_page.about') }}">About</a>
+            <a href="{{ url_for('users.signin') }}">Sign In</a>
+            <a href="{{ url_for('users.signup') }}">Sign Up</a>
+        </div>
+    </nav>
+
+    {% block content %}
+    {% endblock %}
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>RoutePlanner</span>
+        </div>
+        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 0.9rem;">
+            <a href="{{ url_for('home_page.about') }}" style="color: #9ca3af; text-decoration: none;">About</a>
+            <a href="{{ url_for('home_page.terms') }}" style="color: #9ca3af; text-decoration: none;">Terms &
+                Conditions</a>
+        </div>
+        <p style="margin-top: 20px;">© 2026 RoutePlanner. University Project. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

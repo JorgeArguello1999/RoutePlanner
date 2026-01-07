@@ -37,9 +37,9 @@ def signin_page(request_form):
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role.value
+            return redirect('/dashboard')
 
-        # return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
-        return redirect('/dashboard')
+        return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
 
 # GET / Signup Page / Handler
 def signup_page(request_form):
@@ -51,6 +51,24 @@ def signup_page(request_form):
         username = request_form.form.get('username')
         email = request_form.form.get('email')
         password = request_form.form.get('password')
+        confirm_password = request_form.form.get('confirm_password')
+        terms_accepted = request_form.form.get('terms_accepted')
+
+        # Validation
+        if password != confirm_password:
+             return render_template(f"{TEMPLATES_DIR}signup.html", result={
+                "username": username,
+                "email": email,
+                "message": "Passwords do not match"
+            })
+        
+        if not terms_accepted:
+            return render_template(f"{TEMPLATES_DIR}signup.html", result={
+                "username": username,
+                "email": email,
+                "message": "You must agree to the terms and conditions"
+            })
+
         answer = create_user(username, email, password)
         return render_template(f"{TEMPLATES_DIR}signup.html", result=answer)
 
@@ -89,6 +107,7 @@ def create_user(username: str, email: str, password: str) -> UserSignupResponse:
     finally:
         db.session.close()
 
+# GET / Signout Page / Handler
 def signout_page(request):
     """ Sign out the current user """
     session.clear()
