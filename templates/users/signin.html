@@ -1,64 +1,129 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="en">
+<!--begin::Head-->
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión</title>
-    <style>
-        body { font-family: sans-serif; padding: 2rem; }
-        .container { max-width: 400px; margin: 0 auto; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: .5rem; }
-        input { width: 100%; padding: .5rem; box-sizing: border-box; }
-        button { width: 100%; padding: .7rem; background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        
-        /* Estilos para las alertas */
-        .alert { padding: 1rem; margin-bottom: 1rem; border-radius: 5px; }
-        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-        /* Estilo para enlace de registro */
-        .register-link { text-align: center; margin-top: 1.5rem; font-size: 0.9em; }
-        .register-link a { color: #007bff; text-decoration: none; }
-        .register-link a:hover { text-decoration: underline; }
-    </style>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Route Planner | Login</title>
+    <!--begin::Accessibility Meta Tags-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+    <!--end::Accessibility Meta Tags-->
+    <!--begin::Primary Meta Tags-->
+    <meta name="title" content="Route Planner | Login Page" />
+    <meta name="author" content="ColorlibHQ" />
+    <meta name="description"
+        content="Route Planneris a Free Bootstrap 5 Admin Dashboard, 30 example pages using Vanilla JS. Fully accessible with WCAG 2.1 AA compliance." />
+    <meta name="keywords"
+        content="bootstrap 5, bootstrap, bootstrap 5 admin dashboard, bootstrap 5 dashboard, bootstrap 5 charts, bootstrap 5 calendar, bootstrap 5 datepicker, bootstrap 5 tables, bootstrap 5 datatable, vanilla js datatable, colorlibhq, colorlibhq dashboard, colorlibhq admin dashboard, accessible admin panel, WCAG compliant" />
+    <!--end::Primary Meta Tags-->
+    <!--begin::Accessibility Features-->
+    <!-- Skip links will be dynamically added by accessibility.js -->
+    <meta name="supported-color-schemes" content="light dark" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='Route Planner/css/Route Planner.css') }}" />
+    <!--end::Accessibility Features-->
+    <!--begin::Required Plugin(Route Planner)-->
+    <link rel="stylesheet" href="{{ url_for('static', filename='Route Planner/css/Route Planner.css') }}" />
+    <!--end::Required Plugin(Route Planner)-->
 </head>
-<body>
+<!--end::Head-->
+<!--begin::Body-->
 
-<div class="container">
-    <h2>Iniciar Sesión</h2>
-
-    {% if message %}
-        {% if message == "Signin successful" %}
-            <div class="alert alert-success">
-                ✅ {{ message }}
+<body class="login-page bg-body-secondary">
+    <div class="login-box">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <a href="#" class="link-dark text-center link-offset-2 link-opacity-100 link-opacity-50-hover">
+                    <h1 class="mb-0"><b>Admin</b>LTE</h1>
+                </a>
             </div>
-        {% else %}
-            <div class="alert alert-error">
-                ⚠️ {{ message }}
+            <div class="card-body login-card-body">
+                <p class="login-box-msg">Sign in to start your session</p>
+
+                {% if message %}
+                {% if message == "Signin successful" %}
+                <div class="alert alert-success" role="alert">
+                    ✅ {{ message }}
+                </div>
+                {% else %}
+                <div class="alert alert-danger" role="alert">
+                    ⚠️ {{ message }}
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <form action="" method="post">
+                    <div class="input-group mb-1">
+                        <div class="form-floating">
+                            <input id="loginUsername" type="text" class="form-control" name="username" placeholder=""
+                                required />
+                            <label for="loginUsername">Username</label>
+                        </div>
+                        <div class="input-group-text"><span class="bi bi-person"></span></div>
+                    </div>
+                    <div class="input-group mb-1">
+                        <div class="form-floating">
+                            <input id="loginPassword" type="password" class="form-control" name="password"
+                                placeholder="" required />
+                            <label for="loginPassword">Password</label>
+                        </div>
+                        <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
+                    </div>
+                    <!--begin::Row-->
+                    <div class="row">
+                        <div class="col-8 d-inline-flex align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault" />
+                                <label class="form-check-label" for="flexCheckDefault"> Remember Me </label>
+                            </div>
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-4">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Sign In</button>
+                            </div>
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                    <!--end::Row-->
+                </form>
+
+                <p class="mb-0 mt-3">
+                    <a href="{{ url_for('users.signup') }}" class="text-center"> Register a new membership </a>
+                </p>
             </div>
-        {% endif %}
-    {% endif %}
-
-    <form method="POST" action="">
-        <div class="form-group">
-            <label for="username">Usuario:</label>
-            <input type="text" id="username" name="username" required>
+            <!-- /.login-card-body -->
         </div>
-
-        <div class="form-group">
-            <label for="password">Contraseña:</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-
-        <button type="submit">Ingresar</button>
-    </form>
-
-    <div class="register-link">
-        ¿No tienes cuenta? <a href="{{ url_for('users.signup') }}">Regístrate aquí</a>
     </div>
-</div>
-
+    <!-- /.login-box -->
+    <!--begin::Required Plugin(Route Planner)-->
+    <script src="{{ url_for('static', filename='Route Planner/js/Route Planner.js') }}"></script>
+    <!--end::Required Plugin(Route Planner)-->
+    <!--begin::OverlayScrollbars Configure-->
+    <script>
+        const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
+        const Default = {
+            scrollbarTheme: 'os-theme-light',
+            scrollbarAutoHide: 'leave',
+            scrollbarClickScroll: true,
+        };
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
+            if (sidebarWrapper && OverlayScrollbarsGlobal?.OverlayScrollbars !== undefined) {
+                OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
+                    scrollbars: {
+                        theme: Default.scrollbarTheme,
+                        autoHide: Default.scrollbarAutoHide,
+                        clickScroll: Default.scrollbarClickScroll,
+                    },
+                });
+            }
+        });
+    </script>
+    <!--end::OverlayScrollbars Configure-->
 </body>
+<!--end::Body-->
+
 </html>

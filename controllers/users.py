@@ -37,9 +37,9 @@ def signin_page(request_form):
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role.value
+            return redirect('/dashboard')
 
-        # return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
-        return redirect('/dashboard')
+        return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
 
 # GET / Signup Page / Handler
 def signup_page(request_form):
@@ -89,6 +89,7 @@ def create_user(username: str, email: str, password: str) -> UserSignupResponse:
     finally:
         db.session.close()
 
+# GET / Signout Page / Handler
 def signout_page(request):
     """ Sign out the current user """
     session.clear()
