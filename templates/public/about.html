@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - RoutePlanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='imgs/logo_favicon.png') }}" type="image/x-icon">
+    <style>
+        /* Additional styles for About page */
+        .page-header {
+            padding-top: 120px;
+            padding-bottom: 60px;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: bold;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #4a4a4a 0%, #1a1a1a 50%, #4a4a4a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .content-section {
+            padding: 60px 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .team-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e5e5;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .team-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin-bottom: 24px;
+            object-fit: cover;
+            border: 4px solid #f5f5f5;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .tech-badge {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border-radius: 20px;
+            color: #4a4a4a;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+                <span>RoutePlanner</span>
+            </a>
+
+            <div class="nav-links">
+                <a href="{{ url_for('home_page.about') }}" style="color: #1a1a1a; font-weight: 600;">About</a>
+                <a href="{{ url_for('users.signin') }}">Sign In</a>
+                <a href="{{ url_for('users.signup') }}" class="btn-signup">Sign Up</a>
+            </div>
+
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="{{ url_for('home_page.about') }}">About</a>
+            <a href="{{ url_for('users.signin') }}">Sign In</a>
+            <a href="{{ url_for('users.signup') }}">Sign Up</a>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <h1>About RoutePlanner</h1>
+        <p style="font-size: 1.25rem; color: #6a6a6a; max-width: 600px; margin: 0 auto;">Exploring the world through
+            algorithms and graphs</p>
+    </section>
+
+    <!-- Mission Section -->
+    <section class="content-section">
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h2 style="font-size: 2rem; margin-bottom: 20px; color: #1a1a1a;">Our Mission</h2>
+            <p style="font-size: 1.125rem; color: #4a4a4a; line-height: 1.8;">
+                RoutePlanner is an academic initiative designed to demonstrate the power of <strong>Graph
+                    Algorithms</strong> in real-world mapping scenarios.
+                By utilizing real geographic nodes and edges, we calculate optimal routes tailored to various
+                transportation modes.
+                Our goal is not just to show a path, but to visualize the underlying logic of modern navigation systems.
+            </p>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="content-section"
+        style="background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%); border-radius: 20px; margin-bottom: 60px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h2 style="font-size: 2rem; margin-bottom: 10px; color: #1a1a1a;">Meet the Creator</h2>
+        </div>
+
+        <div class="team-card">
+            <img src="https://avatars.githubusercontent.com/u/46856713?v=4" alt="Jorge" class="team-avatar">
+            <h3 style="font-size: 1.5rem; margin-bottom: 8px; color: #1a1a1a;">Jorge</h3>
+            <p style="color: #6a6a6a; margin-bottom: 20px;">Lead Developer & Researcher</p>
+            <p style="font-size: 0.95rem; color: #4a4a4a; line-height: 1.6;">
+                Passionate about solving complex problems through elegant code. This project represents a journey into
+                spatial data analysis and algorithmic efficiency.
+            </p>
+        </div>
+    </section>
+
+    <!-- Tech Stack Section -->
+    <section class="content-section">
+        <div style="text-align: center;">
+            <h2 style="font-size: 2rem; margin-bottom: 30px; color: #1a1a1a;">Built With Open Source</h2>
+            <div class="tech-stack">
+                <span class="tech-badge">Python</span>
+                <span class="tech-badge">Flask</span>
+                <span class="tech-badge">Graph Theory</span>
+                <span class="tech-badge">OpenStreetMap</span>
+                <span class="tech-badge">Leaflet</span>
+                <span class="tech-badge">HTML5/CSS3</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>RoutePlanner</span>
+        </div>
+        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 20px; font-size: 0.9rem;">
+            <a href="{{ url_for('home_page.about') }}" style="color: #9ca3af; text-decoration: none;">About</a>
+            <a href="{{ url_for('home_page.terms') }}" style="color: #9ca3af; text-decoration: none;">Terms &
+                Conditions</a>
+        </div>
+        <p style="margin-top: 20px;">© 2024 RoutePlanner. University Project. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+
+</html>

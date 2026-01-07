@@ -8,3 +8,6 @@ def home():
 
 def about():
     return render_template(f'{TEMPLATES_DIR}about.html')
+
+def terms():
+    return render_template(f'{TEMPLATES_DIR}terms.html')
