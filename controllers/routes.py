@@ -1,2 +1,4 @@
+from flask import render_template
+
 def home():
-    return "Home"
+    return render_template('locations/index.html')
