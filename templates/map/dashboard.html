@@ -112,6 +112,25 @@
                 </div>
             </div>
         </div>
+
+        <!-- Graph Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header border-0">
+                        <div class="d-flex justify-content-between">
+                            <h3 class="card-title">Location Graph</h3>
+                            <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
+                                <i class="bi bi-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="/graphs/locations.png" alt="Location Graph" class="img-fluid border rounded">
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -121,7 +140,7 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
     // Access locations passed from controller
-    const locations = {{ locations | safe }};
+    const locationsList = {{ locations | safe }};
 
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Map
@@ -136,7 +155,7 @@
         const selectA = document.getElementById('pointA');
         const selectB = document.getElementById('pointB');
 
-        locations.forEach(loc => {
+        locationsList.forEach(loc => {
             // Add to map
             L.marker([loc.latitude, loc.longitude])
                 .addTo(map)
