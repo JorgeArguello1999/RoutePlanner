@@ -112,3 +112,96 @@ def signout_page(request):
     """ Sign out the current user """
     session.clear()
     return redirect(url_for('home_page.home'))
+
+# GET/POST / Update Profile
+def update_profile_page(request_form):
+    """ Handle profile updates """
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    
+    if request_form.method == 'GET':
+        # If the request asks for JSON, return JSON (for API/Testing)
+        if request_form.headers.get('Content-Type') == 'application/json':
+             return {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value
+            }
+        
+        # Otherwise render the template
+        return render_template(f"{TEMPLATES_DIR}update.html", user=user)
+
+    elif request_form.method == 'POST':
+        is_json = request_form.is_json
+        data = request_form.get_json() if is_json else request_form.form
+        
+        new_username = data.get('username')
+        new_email = data.get('email')
+        
+        message = None
+        error = None
+
+        # Validation
+        if new_username and new_username != user.username:
+            if User.query.filter_by(username=new_username).first():
+                error = "Username already taken"
+            else:
+                user.username = new_username
+            
+        if not error and new_email and new_email != user.email:
+            if User.query.filter_by(email=new_email).first():
+                error = "Email already taken"
+            else:
+                user.email = new_email
+            
+        try:
+            if not error:
+                db.session.commit()
+                # Update session if username changed
+                session['username'] = user.username
+                message = "Profile updated successfully"
+            
+            if is_json:
+                if error: return {"error": error}, 400
+                return {"message": message}
+            
+            return render_template(f"{TEMPLATES_DIR}update.html", user=user, message=message, error=error)
+
+        except Exception as e:
+            db.session.rollback()
+            if is_json: return {"error": str(e)}, 500
+            return render_template(f"{TEMPLATES_DIR}update.html", user=user, error="An error occurred"), 500
+
+# GET/POST / Change Password
+def change_password_page(request_form):
+    """ Handle password changes """
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    
+    if request_form.method == 'GET':
+        return {"message": "Submit POST request with current_password, new_password, and confirm_password"}
+
+    elif request_form.method == 'POST':
+        data = request_form.form if request_form.form else request_form.get_json()
+        
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not user.check_password(current_password):
+            return {"error": "Incorrect current password"}, 401
+            
+        if new_password != confirm_password:
+            return {"error": "New passwords do not match"}, 400
+            
+        if not new_password:
+            return {"error": "New password cannot be empty"}, 400
+            
+        try:
+            user.password = new_password
+            db.session.commit()
+            return {"message": "Password changed successfully"}
+        except Exception as e:
+            db.session.rollback()
+            return {"error": str(e)}, 500
