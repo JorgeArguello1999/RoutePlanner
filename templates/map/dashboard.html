@@ -70,28 +70,57 @@
                     <div class="card-body">
                         <form id="distanceForm" onsubmit="calculateDistance(event)">
                             <div class="row align-items-end">
-                                <div class="col-md-5">
+                                <div class="col-md-3">
                                     <label class="form-label">Point A</label>
                                     <select class="form-select" id="pointA" required>
                                         <option value="">Select location...</option>
                                         <!-- Populated via JS -->
                                     </select>
                                 </div>
-                                <div class="col-md-5">
+                                <div class="col-md-3">
+                                    <label class="form-label">Intermediate (Optional)</label>
+                                    <select class="form-select" id="pointMid" onchange="toggleCustomCoords()">
+                                        <option value="">None</option>
+                                        <option value="custom">Custom Coordinates</option>
+                                        <option disabled>──────────</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
                                     <label class="form-label">Point B</label>
                                     <select class="form-select" id="pointB" required>
                                         <option value="">Select location...</option>
                                         <!-- Populated via JS -->
                                     </select>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                                </div>
+                            </div>
+
+                            <!-- Custom Coordinates Inputs (Hidden by default) -->
+                            <div id="customCoords" class="row mt-2" style="display: none;">
+                                <div class="col-md-6 offset-md-3">
+                                    <div class="card card-body bg-light">
+                                        <h6 class="card-title text-muted mb-2">Intermediate Coordinates</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <input type="number" step="any" class="form-control form-control-sm"
+                                                    id="midLat" placeholder="Latitude">
+                                            </div>
+                                            <div class="col-6">
+                                                <input type="number" step="any" class="form-control form-control-sm"
+                                                    id="midLon" placeholder="Longitude">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </form>
                         <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
                             <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span></p>
-                            <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span id="graphDistValue"></span></p>
+                            <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span
+                                    id="graphDistValue"></span></p>
                         </div>
                     </div>
                 </div>
@@ -143,6 +172,7 @@
     // Access locations passed from controller
     const locationsList = {{ locations | safe }};
     let currentRouteLine = null;
+    let midMarker = null;
     let map = null;
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -157,6 +187,7 @@
         const bounds = [];
         const selectA = document.getElementById('pointA');
         const selectB = document.getElementById('pointB');
+        const selectMid = document.getElementById('pointMid');
 
         locationsList.forEach(loc => {
             // Add to map
@@ -168,14 +199,31 @@
             // Add to selects
             const optionA = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
             const optionB = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+            const optionMid = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+
             selectA.add(optionA);
             selectB.add(optionB);
+            selectMid.add(optionMid);
         });
 
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [50, 50] });
         }
     });
+
+    function toggleCustomCoords() {
+        const midVal = document.getElementById('pointMid').value;
+        const customDiv = document.getElementById('customCoords');
+        if (midVal === 'custom') {
+            customDiv.style.display = 'block';
+            document.getElementById('midLat').setAttribute('required', 'required');
+            document.getElementById('midLon').setAttribute('required', 'required');
+        } else {
+            customDiv.style.display = 'none';
+            document.getElementById('midLat').removeAttribute('required');
+            document.getElementById('midLon').removeAttribute('required');
+        }
+    }
 
     function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the Earth in km
@@ -186,7 +234,7 @@
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return (R * c).toFixed(2);
+        return parseFloat((R * c).toFixed(2));
     }
 
     function calculateDistance(e) {
@@ -194,17 +242,48 @@
         const locA = JSON.parse(document.getElementById('pointA').value);
         const locB = JSON.parse(document.getElementById('pointB').value);
 
+        let locMid = null;
+        const midVal = document.getElementById('pointMid').value;
+
+        if (midVal === 'custom') {
+            const lat = parseFloat(document.getElementById('midLat').value);
+            const lon = parseFloat(document.getElementById('midLon').value);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                locMid = { latitude: lat, longitude: lon, name: 'Custom Point' };
+            }
+        } else if (midVal) {
+            locMid = JSON.parse(midVal);
+        }
+
         if (locA && locB) {
             // Update Graph Image with Highlight
             const graphImg = document.querySelector('img[alt="Location Graph"]');
+            // If mid point exists and is a saved location (has id), we could theoretically visualize it, 
+            // but the backend might not support 3-node path highlighting easily without changing the API.
+            // For now, we keep the A-B highlight or maybe A-Mid-B if supported. 
+            // The plan noted this limitation. We'll just highlight A-B for now or A-B if no mid.
+            // Let's stick to A-B highlight as the graph is static nodes.
             graphImg.src = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
 
             // Calculate Graph Distance (Haversine)
-            const graphDistance = calculateHaversineDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude);
+            let graphDistance = 0;
+            if (locMid) {
+                const dist1 = calculateHaversineDistance(locA.latitude, locA.longitude, locMid.latitude, locMid.longitude);
+                const dist2 = calculateHaversineDistance(locMid.latitude, locMid.longitude, locB.latitude, locB.longitude);
+                graphDistance = (dist1 + dist2).toFixed(2);
+            } else {
+                graphDistance = calculateHaversineDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude).toFixed(2);
+            }
+
             document.getElementById('graphDistValue').innerText = `${graphDistance} km`;
-            
+
             // OSRM Routing
-            const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
+            let osrmUrl = '';
+            if (locMid) {
+                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locMid.longitude},${locMid.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
+            } else {
+                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
+            }
 
             fetch(osrmUrl)
                 .then(response => response.json())
@@ -217,8 +296,10 @@
                         document.getElementById('distanceResult').style.display = 'block';
 
                         // Draw Route
-                        if (currentRouteLine) {
-                            map.removeLayer(currentRouteLine);
+                        if (currentRouteLine) map.removeLayer(currentRouteLine);
+                        if (midMarker) {
+                            map.removeLayer(midMarker);
+                            midMarker = null;
                         }
 
                         // OSRM returns GeoJSON LineString
@@ -226,19 +307,27 @@
                             style: { color: 'blue', weight: 4, opacity: 0.7 }
                         }).addTo(map);
 
-                        currentRouteLine.bindPopup(`Road Distance: ${distanceKm} km<br>Graph Distance: ${graphDistance} km`).openPopup();
+                        // Add Mid Marker if exists
+                        if (locMid) {
+                            midMarker = L.marker([locMid.latitude, locMid.longitude], {
+                                icon: L.divIcon({
+                                    className: 'bg-warning border border-dark rounded-circle',
+                                    iconSize: [12, 12]
+                                })
+                            }).addTo(map).bindPopup('Intermediate Point');
+                        }
+
+                        currentRouteLine.bindPopup(`Total Road Distance: ${distanceKm} km<br>Total Graph Distance: ${graphDistance} km`).openPopup();
                         map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
 
                     } else {
                         alert('Could not calculate road route. Check connectivity.');
-                        // Still show graph distance if OSRM fails
-                         document.getElementById('distValue').innerText = 'N/A';
-                         document.getElementById('distanceResult').style.display = 'block';
+                        document.getElementById('distValue').innerText = 'N/A';
+                        document.getElementById('distanceResult').style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching route:', error);
-                    // Still show graph distance if OSRM fails
                     document.getElementById('distValue').innerText = 'Error';
                     document.getElementById('distanceResult').style.display = 'block';
                 });
