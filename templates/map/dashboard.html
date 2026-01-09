@@ -90,7 +90,8 @@
                             </div>
                         </form>
                         <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
-                            Distance: <span id="distValue" class="fw-bold"></span> units
+                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span></p>
+                            <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span id="graphDistValue"></span></p>
                         </div>
                     </div>
                 </div>
@@ -176,6 +177,18 @@
         }
     });
 
+    function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radius of the Earth in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return (R * c).toFixed(2);
+    }
+
     function calculateDistance(e) {
         e.preventDefault();
         const locA = JSON.parse(document.getElementById('pointA').value);
@@ -186,6 +199,10 @@
             const graphImg = document.querySelector('img[alt="Location Graph"]');
             graphImg.src = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
 
+            // Calculate Graph Distance (Haversine)
+            const graphDistance = calculateHaversineDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude);
+            document.getElementById('graphDistValue').innerText = `${graphDistance} km`;
+            
             // OSRM Routing
             const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
 
@@ -209,16 +226,21 @@
                             style: { color: 'blue', weight: 4, opacity: 0.7 }
                         }).addTo(map);
 
-                        currentRouteLine.bindPopup(`Road Distance: ${distanceKm} km`).openPopup();
+                        currentRouteLine.bindPopup(`Road Distance: ${distanceKm} km<br>Graph Distance: ${graphDistance} km`).openPopup();
                         map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
 
                     } else {
                         alert('Could not calculate road route. Check connectivity.');
+                        // Still show graph distance if OSRM fails
+                         document.getElementById('distValue').innerText = 'N/A';
+                         document.getElementById('distanceResult').style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching route:', error);
-                    alert('Error calculating route.');
+                    // Still show graph distance if OSRM fails
+                    document.getElementById('distValue').innerText = 'Error';
+                    document.getElementById('distanceResult').style.display = 'block';
                 });
         }
     }
