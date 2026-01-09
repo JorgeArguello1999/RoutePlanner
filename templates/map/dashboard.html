@@ -258,12 +258,18 @@
         if (locA && locB) {
             // Update Graph Image with Highlight
             const graphImg = document.querySelector('img[alt="Location Graph"]');
-            // If mid point exists and is a saved location (has id), we could theoretically visualize it, 
-            // but the backend might not support 3-node path highlighting easily without changing the API.
-            // For now, we keep the A-B highlight or maybe A-Mid-B if supported. 
-            // The plan noted this limitation. We'll just highlight A-B for now or A-B if no mid.
-            // Let's stick to A-B highlight as the graph is static nodes.
-            graphImg.src = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
+            let graphUrl = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
+
+            if (locMid) {
+                if (locMid.id) {
+                    // Existing Location
+                    graphUrl += `&mid=${locMid.id}`;
+                } else {
+                    // Custom Coordinate
+                    graphUrl += `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
+                }
+            }
+            graphImg.src = graphUrl;
 
             // Calculate Graph Distance (Haversine)
             let graphDistance = 0;
