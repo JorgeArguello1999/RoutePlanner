@@ -182,30 +182,47 @@
         const locB = JSON.parse(document.getElementById('pointB').value);
 
         if (locA && locB) {
-            const result = euclideanDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude);
-            document.getElementById('distValue').innerText = result.toFixed(4);
-            document.getElementById('distanceResult').style.display = 'block';
+            // Update Graph Image with Highlight
+            const graphImg = document.querySelector('img[alt="Location Graph"]');
+            graphImg.src = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
 
-            // Draw Route Line
-            if (currentRouteLine) {
-                map.removeLayer(currentRouteLine);
-            }
+            // OSRM Routing
+            const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
 
-            const latlngs = [
-                [locA.latitude, locA.longitude],
-                [locB.latitude, locB.longitude]
-            ];
+            fetch(osrmUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                        const route = data.routes[0];
+                        const distanceKm = (route.distance / 1000).toFixed(2);
 
-            currentRouteLine = L.polyline(latlngs, { color: 'red', weight: 4, opacity: 0.7 }).addTo(map);
-            currentRouteLine.bindPopup(`Distance: ${result.toFixed(4)} units`).openPopup();
+                        document.getElementById('distValue').innerText = `${distanceKm} km`;
+                        document.getElementById('distanceResult').style.display = 'block';
 
-            map.fitBounds(latlngs, { padding: [50, 50] });
+                        // Draw Route
+                        if (currentRouteLine) {
+                            map.removeLayer(currentRouteLine);
+                        }
+
+                        // OSRM returns GeoJSON LineString
+                        currentRouteLine = L.geoJSON(route.geometry, {
+                            style: { color: 'blue', weight: 4, opacity: 0.7 }
+                        }).addTo(map);
+
+                        currentRouteLine.bindPopup(`Road Distance: ${distanceKm} km`).openPopup();
+                        map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
+
+                    } else {
+                        alert('Could not calculate road route. Check connectivity.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching route:', error);
+                    alert('Error calculating route.');
+                });
         }
     }
 
-    function euclideanDistance(lat1, lon1, lat2, lon2) {
-        // Simple Euclidean distance on coordinates (not realistic for earth surface but requested)
-        return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
-    }
+
 </script>
 {% endblock %}

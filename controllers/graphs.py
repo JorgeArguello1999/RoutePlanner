@@ -7,10 +7,11 @@ import matplotlib.pyplot as plt
 from flask import send_file, session
 from models.locations import Location
 
-def generate_location_graph(user_id):
+def generate_location_graph(user_id, highlight_pair=None):
     """
     Generates a PNG image of the user's location graph.
     Nodes are positioned by (longitude, latitude).
+    highlight_pair: tuple of (id1, id2) to highlight edge.
     """
     locations = Location.query.filter_by(user_id=user_id).all()
     
@@ -34,6 +35,18 @@ def generate_location_graph(user_id):
 
         plt.figure(figsize=(10, 8))
         
+        import math
+
+        def haversine(lat1, lon1, lat2, lon2):
+            R = 6371  # Earth radius in kilometers
+            phi1, phi2 = math.radians(lat1), math.radians(lat2)
+            dphi = math.radians(lat2 - lat1)
+            dlambda = math.radians(lon2 - lon1)
+            
+            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2) * math.sin(dlambda/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            return R * c
+        
         # Draw Nodes
         nx.draw_networkx_nodes(G, pos, node_size=700, node_color='skyblue')
         
@@ -44,25 +57,40 @@ def generate_location_graph(user_id):
         if len(locations) > 1:
             edges = []
             edge_labels = {}
+            colors = []
+            widths = []
+            
+            # Sort pair for consistent comparison
+            h_pair = tuple(sorted(highlight_pair)) if highlight_pair else None
+
             for i in range(len(locations)):
                 for j in range(i + 1, len(locations)):
                     u = locations[i]
                     v = locations[j]
                     
-                    # Calculate Euclidean Distance
-                    dist = math.sqrt((v.longitude - u.longitude)**2 + (v.latitude - u.latitude)**2)
+                    # Calculate Haversine Distance (km)
+                    dist = haversine(u.latitude, u.longitude, v.latitude, v.longitude)
                     
                     G.add_edge(u.id, v.id, weight=dist)
                     edges.append((u.id, v.id))
-                    edge_labels[(u.id, v.id)] = f"{dist:.2f}"
+                    edge_labels[(u.id, v.id)] = f"{dist:.2f} km"
+                    
+                    # Check for highlight
+                    current_pair = tuple(sorted((u.id, v.id)))
+                    if h_pair and h_pair == current_pair:
+                        colors.append('red')
+                        widths.append(3.0)
+                    else:
+                        colors.append('gray')
+                        widths.append(1.0)
             
             # Draw edges
-            nx.draw_networkx_edges(G, pos, edgelist=edges, width=1, alpha=0.5, edge_color='gray', style='dashed')
+            nx.draw_networkx_edges(G, pos, edgelist=edges, width=widths, alpha=0.6, edge_color=colors, style='dashed')
             
             # Draw edge labels
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, font_color='red')
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, font_color='black')
         
-        plt.title("Location Graph (Euclidean Distance)")
+        plt.title("Location Graph (Haversine Distance - km)")
         plt.xlabel("Longitude")
         plt.ylabel("Latitude")
         plt.grid(True)
