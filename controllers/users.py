@@ -180,28 +180,42 @@ def change_password_page(request_form):
     user = User.query.get(user_id)
     
     if request_form.method == 'GET':
-        return {"message": "Submit POST request with current_password, new_password, and confirm_password"}
+        if request_form.headers.get('Content-Type') == 'application/json':
+            return {"message": "Submit POST request with current_password, new_password, and confirm_password"}
+        return render_template(f"{TEMPLATES_DIR}update.html", user=user)
 
     elif request_form.method == 'POST':
-        data = request_form.form if request_form.form else request_form.get_json()
+        is_json = request_form.is_json
+        data = request_form.get_json() if is_json else request_form.form
         
         current_password = data.get('current_password')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password')
         
+        error = None
+        message = None
+        
         if not user.check_password(current_password):
-            return {"error": "Incorrect current password"}, 401
+            error = "Incorrect current password"
             
-        if new_password != confirm_password:
-            return {"error": "New passwords do not match"}, 400
+        elif new_password != confirm_password:
+            error = "New passwords do not match"
             
-        if not new_password:
-            return {"error": "New password cannot be empty"}, 400
+        elif not new_password:
+            error = "New password cannot be empty"
             
-        try:
-            user.password = new_password
-            db.session.commit()
-            return {"message": "Password changed successfully"}
-        except Exception as e:
-            db.session.rollback()
-            return {"error": str(e)}, 500
+        if not error:
+            try:
+                user.password = new_password
+                db.session.commit()
+                message = "Password changed successfully"
+            except Exception as e:
+                db.session.rollback()
+                error = str(e)
+
+        if is_json:
+            if error: return {"error": error}, 400 if "Incorrect" in error else 400
+            return {"message": message}
+            
+        # For HTML Form:
+        return render_template(f"{TEMPLATES_DIR}update.html", user=user, message=message, error=error)
