@@ -1,11 +1,345 @@
 {% extends "base.html" %}
 
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ensure the map container has a defined height */
+    #map-container {
+        width: 100%;
+        height: 500px;
+        background-color: #e9ecef;
+        border-radius: 0.375rem;
+    }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+{% endblock %}
+
 {% block content %}
-<div class="dashboard"> 
-    <h1>Map Dashboard</h1>
-    <div id="map-container">
-        <!-- Map will be rendered here -->
+<!--begin::App Content Header-->
+<div class="app-content-header">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-6">
+                <h3 class="mb-0">Dashboard</h3>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-end">
+                    <li class="breadcrumb-item"><a href="#">Home</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+                </ol>
+            </div>
+        </div>
     </div>
 </div>
+<!--end::App Content Header-->
 
+<!--begin::App Content-->
+<div class="app-content">
+    <div class="container-fluid">
+        <!-- Stats Row -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box text-bg-primary">
+                    <div class="inner">
+                        <h3>{{ locations_count }}</h3>
+                        <p>Total Routes</p>
+                    </div>
+                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path
+                            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z">
+                        </path>
+                    </svg>
+                    <a href="/routes/"
+                        class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                        Manage Routes <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distance Calculator Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Distance Calculator (Euclidean)</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="distanceForm" onsubmit="calculateDistance(event)">
+                            <div class="row align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">Point A</label>
+                                    <select class="form-select" id="pointA" required>
+                                        <option value="">Select location...</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Intermediate (Optional)</label>
+                                    <select class="form-select" id="pointMid" onchange="toggleCustomCoords()">
+                                        <option value="">None</option>
+                                        <option value="custom">Custom Coordinates</option>
+                                        <option disabled>──────────</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Point B</label>
+                                    <select class="form-select" id="pointB" required>
+                                        <option value="">Select location...</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                                </div>
+                            </div>
+
+                            <!-- Custom Coordinates Inputs (Hidden by default) -->
+                            <div id="customCoords" class="row mt-2" style="display: none;">
+                                <div class="col-md-6 offset-md-3">
+                                    <div class="card card-body bg-light">
+                                        <h6 class="card-title text-muted mb-2">Intermediate Coordinates</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <input type="number" step="any" class="form-control form-control-sm"
+                                                    id="midLat" placeholder="Latitude">
+                                            </div>
+                                            <div class="col-6">
+                                                <input type="number" step="any" class="form-control form-control-sm"
+                                                    id="midLon" placeholder="Longitude">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
+                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span></p>
+                            <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span
+                                    id="graphDistValue"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header border-0">
+                        <div class="d-flex justify-content-between">
+                            <h3 class="card-title">Interactive Map</h3>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="map-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graph Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header border-0">
+                        <div class="d-flex justify-content-between">
+                            <h3 class="card-title">Location Graph</h3>
+                            <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
+                                <i class="bi bi-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="/graphs/locations.png" alt="Location Graph" class="img-fluid border rounded">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    // Access locations passed from controller
+    const locationsList = {{ locations | safe }};
+    let currentRouteLine = null;
+    let midMarker = null;
+    let map = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Map
+        map = L.map('map-container').setView([20, 0], 2);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // Add Markers & Fit Bounds
+        const bounds = [];
+        const selectA = document.getElementById('pointA');
+        const selectB = document.getElementById('pointB');
+        const selectMid = document.getElementById('pointMid');
+
+        locationsList.forEach(loc => {
+            // Add to map
+            L.marker([loc.latitude, loc.longitude])
+                .addTo(map)
+                .bindPopup(`<b>${loc.name || 'Location'}</b><br>${loc.city}, ${loc.country}`);
+            bounds.push([loc.latitude, loc.longitude]);
+
+            // Add to selects
+            const optionA = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+            const optionB = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+            const optionMid = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+
+            selectA.add(optionA);
+            selectB.add(optionB);
+            selectMid.add(optionMid);
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    });
+
+    function toggleCustomCoords() {
+        const midVal = document.getElementById('pointMid').value;
+        const customDiv = document.getElementById('customCoords');
+        if (midVal === 'custom') {
+            customDiv.style.display = 'block';
+            document.getElementById('midLat').setAttribute('required', 'required');
+            document.getElementById('midLon').setAttribute('required', 'required');
+        } else {
+            customDiv.style.display = 'none';
+            document.getElementById('midLat').removeAttribute('required');
+            document.getElementById('midLon').removeAttribute('required');
+        }
+    }
+
+    function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radius of the Earth in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return parseFloat((R * c).toFixed(2));
+    }
+
+    function calculateDistance(e) {
+        e.preventDefault();
+        const locA = JSON.parse(document.getElementById('pointA').value);
+        const locB = JSON.parse(document.getElementById('pointB').value);
+
+        let locMid = null;
+        const midVal = document.getElementById('pointMid').value;
+
+        if (midVal === 'custom') {
+            const lat = parseFloat(document.getElementById('midLat').value);
+            const lon = parseFloat(document.getElementById('midLon').value);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                locMid = { latitude: lat, longitude: lon, name: 'Custom Point' };
+            }
+        } else if (midVal) {
+            locMid = JSON.parse(midVal);
+        }
+
+        if (locA && locB) {
+            // Update Graph Image with Highlight
+            const graphImg = document.querySelector('img[alt="Location Graph"]');
+            let graphUrl = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
+
+            if (locMid) {
+                if (locMid.id) {
+                    // Existing Location
+                    graphUrl += `&mid=${locMid.id}`;
+                } else {
+                    // Custom Coordinate
+                    graphUrl += `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
+                }
+            }
+            graphImg.src = graphUrl;
+
+            // Calculate Graph Distance (Haversine)
+            let graphDistance = 0;
+            if (locMid) {
+                const dist1 = calculateHaversineDistance(locA.latitude, locA.longitude, locMid.latitude, locMid.longitude);
+                const dist2 = calculateHaversineDistance(locMid.latitude, locMid.longitude, locB.latitude, locB.longitude);
+                graphDistance = (dist1 + dist2).toFixed(2);
+            } else {
+                graphDistance = calculateHaversineDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude).toFixed(2);
+            }
+
+            document.getElementById('graphDistValue').innerText = `${graphDistance} km`;
+
+            // OSRM Routing
+            let osrmUrl = '';
+            if (locMid) {
+                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locMid.longitude},${locMid.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
+            } else {
+                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
+            }
+
+            fetch(osrmUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                        const route = data.routes[0];
+                        const distanceKm = (route.distance / 1000).toFixed(2);
+
+                        document.getElementById('distValue').innerText = `${distanceKm} km`;
+                        document.getElementById('distanceResult').style.display = 'block';
+
+                        // Draw Route
+                        if (currentRouteLine) map.removeLayer(currentRouteLine);
+                        if (midMarker) {
+                            map.removeLayer(midMarker);
+                            midMarker = null;
+                        }
+
+                        // OSRM returns GeoJSON LineString
+                        currentRouteLine = L.geoJSON(route.geometry, {
+                            style: { color: 'blue', weight: 4, opacity: 0.7 }
+                        }).addTo(map);
+
+                        // Add Mid Marker if exists
+                        if (locMid) {
+                            midMarker = L.marker([locMid.latitude, locMid.longitude], {
+                                icon: L.divIcon({
+                                    className: 'bg-warning border border-dark rounded-circle',
+                                    iconSize: [12, 12]
+                                })
+                            }).addTo(map).bindPopup('Intermediate Point');
+                        }
+
+                        currentRouteLine.bindPopup(`Total Road Distance: ${distanceKm} km<br>Total Graph Distance: ${graphDistance} km`).openPopup();
+                        map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
+
+                    } else {
+                        alert('Could not calculate road route. Check connectivity.');
+                        document.getElementById('distValue').innerText = 'N/A';
+                        document.getElementById('distanceResult').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching route:', error);
+                    document.getElementById('distValue').innerText = 'Error';
+                    document.getElementById('distanceResult').style.display = 'block';
+                });
+        }
+    }
+
+
+</script>
 {% endblock %}

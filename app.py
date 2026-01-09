@@ -20,4 +20,12 @@ init_db(app)
 register_routes(app)
 
 if __name__ == "__main__":
+    # Integration of verification as requested
+    try:
+        from test.verify_locations import verify
+        print("Running startup verification...")
+        verify()
+    except Exception as e:
+        print(f"Verification failed: {e}")
+
     app.run(debug=getenv('DEBUG'))
