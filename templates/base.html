@@ -87,13 +87,15 @@
                         data-accordion="false">
                         <li class="nav-header">CONFIGS</li>
                         <li class="nav-item">
-                            <a href="/dashboard" class="nav-link active">
+                            <a href="/dashboard"
+                                class="nav-link {{ 'active' if request.endpoint == 'dashboard.index' else '' }}">
                                 <i class="nav-icon bi bi-speedometer2"></i>
                                 <p>Dashboard</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('routes.home') }}" class="nav-link">
+                            <a href="/routes/"
+                                class="nav-link {{ 'active' if 'routes.' in request.endpoint or request.endpoint == 'locations.get_locations' else '' }}">
                                 <i class="nav-icon bi bi-map"></i>
                                 <p>Routes</p>
                             </a>

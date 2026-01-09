@@ -9,7 +9,6 @@
         width: 100%;
         height: 500px;
         background-color: #e9ecef;
-        /* Fallback color */
         border-radius: 0.375rem;
     }
 </style>
@@ -20,9 +19,7 @@
 {% block content %}
 <!--begin::App Content Header-->
 <div class="app-content-header">
-    <!--begin::Container-->
     <div class="container-fluid">
-        <!--begin::Row-->
         <div class="row">
             <div class="col-sm-6">
                 <h3 class="mb-0">Dashboard</h3>
@@ -34,24 +31,19 @@
                 </ol>
             </div>
         </div>
-        <!--end::Row-->
     </div>
-    <!--end::Container-->
 </div>
 <!--end::App Content Header-->
 
 <!--begin::App Content-->
 <div class="app-content">
-    <!--begin::Container-->
     <div class="container-fluid">
-        <!--begin::Row-->
+        <!-- Stats Row -->
         <div class="row">
-            <!--begin::Col-->
             <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 1-->
                 <div class="small-box text-bg-primary">
                     <div class="inner">
-                        <h3>150</h3>
+                        <h3>{{ locations_count }}</h3>
                         <p>Total Routes</p>
                     </div>
                     <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
@@ -60,87 +52,52 @@
                             d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z">
                         </path>
                     </svg>
-                    <a href="#"
+                    <a href="/routes/"
                         class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                        More info <i class="bi bi-link-45deg"></i>
+                        Manage Routes <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
-                <!--end::Small Box Widget 1-->
             </div>
-            <!--end::Col-->
-            <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 2-->
-                <div class="small-box text-bg-success">
-                    <div class="inner">
-                        <h3>53<sup class="fs-5">%</sup></h3>
-                        <p>Efficiency Rate</p>
-                    </div>
-                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path clip-rule="evenodd" fill-rule="evenodd"
-                            d="M2.25 13.5a8.25 8.25 0 018.25-8.25.75.75 0 01.75.75v6.75H18a.75.75 0 01.75.75 8.25 8.25 0 01-16.5 0z">
-                        </path>
-                        <path clip-rule="evenodd" fill-rule="evenodd"
-                            d="M12.75 3a.75.75 0 01.75-.75 8.25 8.25 0 018.25 8.25.75.75 0 01-.75.75h-7.5a.75.75 0 01-.75-.75V3z">
-                        </path>
-                    </svg>
-                    <a href="#"
-                        class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                        More info <i class="bi bi-link-45deg"></i>
-                    </a>
-                </div>
-                <!--end::Small Box Widget 2-->
-            </div>
-            <!--end::Col-->
-            <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 3-->
-                <div class="small-box text-bg-warning">
-                    <div class="inner">
-                        <h3>44</h3>
-                        <p>User Registrations</p>
-                    </div>
-                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path
-                            d="M6.25 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM3.25 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM19.75 7.5a.75.75 0 00-1.5 0v2.25H16a.75.75 0 000 1.5h2.25v2.25a.75.75 0 001.5 0v-2.25H22a.75.75 0 000-1.5h-2.25V7.5z">
-                        </path>
-                    </svg>
-                    <a href="#"
-                        class="small-box-footer link-dark link-underline-opacity-0 link-underline-opacity-50-hover">
-                        More info <i class="bi bi-link-45deg"></i>
-                    </a>
-                </div>
-                <!--end::Small Box Widget 3-->
-            </div>
-            <!--end::Col-->
-            <div class="col-lg-3 col-6">
-                <!--begin::Small Box Widget 4-->
-                <div class="small-box text-bg-danger">
-                    <div class="inner">
-                        <h3>65</h3>
-                        <p>Unique Visitors</p>
-                    </div>
-                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path clip-rule="evenodd" fill-rule="evenodd"
-                            d="M2.25 13.5a8.25 8.25 0 018.25-8.25.75.75 0 01.75.75v6.75H18a.75.75 0 01.75.75 8.25 8.25 0 01-16.5 0z">
-                        </path>
-                        <path clip-rule="evenodd" fill-rule="evenodd"
-                            d="M12.75 3a.75.75 0 01.75-.75 8.25 8.25 0 018.25 8.25.75.75 0 01-.75.75h-7.5a.75.75 0 01-.75-.75V3z">
-                        </path>
-                    </svg>
-                    <a href="#"
-                        class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                        More info <i class="bi bi-link-45deg"></i>
-                    </a>
-                </div>
-                <!--end::Small Box Widget 4-->
-            </div>
-            <!--end::Col-->
         </div>
-        <!--end::Row-->
 
-        <!--begin::Row-->
+        <!-- Distance Calculator Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Distance Calculator (Euclidean)</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="distanceForm" onsubmit="calculateDistance(event)">
+                            <div class="row align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label">Point A</label>
+                                    <select class="form-select" id="pointA" required>
+                                        <option value="">Select location...</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Point B</label>
+                                    <select class="form-select" id="pointB" required>
+                                        <option value="">Select location...</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
+                            Distance: <span id="distValue" class="fw-bold"></span> units
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Row -->
         <div class="row">
             <div class="col-12">
                 <div class="card mb-4">
@@ -155,25 +112,64 @@
                 </div>
             </div>
         </div>
-        <!--end::Row-->
     </div>
-    <!--end::Container-->
 </div>
-<!--end::App Content-->
 {% endblock %}
 
 {% block extra_js %}
-<!-- Make sure you put this AFTER Leaflet's CSS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-    // Initialize the map
+    // Access locations passed from controller
+    const locations = {{ locations | safe }};
+
     document.addEventListener('DOMContentLoaded', function () {
-        var map = L.map('map-container').setView([51.505, -0.09], 13);
+        // Initialize Map
+        var map = L.map('map-container').setView([20, 0], 2);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
+
+        // Add Markers & Fit Bounds
+        const bounds = [];
+        const selectA = document.getElementById('pointA');
+        const selectB = document.getElementById('pointB');
+
+        locations.forEach(loc => {
+            // Add to map
+            L.marker([loc.latitude, loc.longitude])
+                .addTo(map)
+                .bindPopup(`<b>${loc.name || 'Location'}</b><br>${loc.city}, ${loc.country}`);
+            bounds.push([loc.latitude, loc.longitude]);
+
+            // Add to selects
+            const optionA = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+            const optionB = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
+            selectA.add(optionA);
+            selectB.add(optionB);
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
     });
+
+    function calculateDistance(e) {
+        e.preventDefault();
+        const locA = JSON.parse(document.getElementById('pointA').value);
+        const locB = JSON.parse(document.getElementById('pointB').value);
+
+        if (locA && locB) {
+            const result = euclideanDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude);
+            document.getElementById('distValue').innerText = result.toFixed(4);
+            document.getElementById('distanceResult').style.display = 'block';
+        }
+    }
+
+    function euclideanDistance(lat1, lon1, lat2, lon2) {
+        // Simple Euclidean distance on coordinates (not realistic for earth surface but requested)
+        return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
+    }
 </script>
 {% endblock %}
