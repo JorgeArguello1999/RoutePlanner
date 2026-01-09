@@ -17,6 +17,7 @@ def init_db(app):
     with app.app_context():
         from models.users import User
         from models.api_storage import API_Storage
+        from models.locations import Location
         # Import other models here...
 
         # NOTE: When using migrations, we usually DISABLE db.create_all()
