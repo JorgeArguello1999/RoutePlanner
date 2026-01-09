@@ -141,10 +141,12 @@
 <script>
     // Access locations passed from controller
     const locationsList = {{ locations | safe }};
+    let currentRouteLine = null;
+    let map = null;
 
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Map
-        var map = L.map('map-container').setView([20, 0], 2);
+        map = L.map('map-container').setView([20, 0], 2);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -183,6 +185,21 @@
             const result = euclideanDistance(locA.latitude, locA.longitude, locB.latitude, locB.longitude);
             document.getElementById('distValue').innerText = result.toFixed(4);
             document.getElementById('distanceResult').style.display = 'block';
+
+            // Draw Route Line
+            if (currentRouteLine) {
+                map.removeLayer(currentRouteLine);
+            }
+
+            const latlngs = [
+                [locA.latitude, locA.longitude],
+                [locB.latitude, locB.longitude]
+            ];
+
+            currentRouteLine = L.polyline(latlngs, { color: 'red', weight: 4, opacity: 0.7 }).addTo(map);
+            currentRouteLine.bindPopup(`Distance: ${result.toFixed(4)} units`).openPopup();
+
+            map.fitBounds(latlngs, { padding: [50, 50] });
         }
     }
 
