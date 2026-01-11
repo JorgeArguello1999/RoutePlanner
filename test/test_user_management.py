@@ -9,7 +9,9 @@ import os
 
 class TestUserManagement(unittest.TestCase):
     def setUp(self):
-        self.app = Flask(__name__)
+        # Point to the correct templates folder relative to CWD or script
+        template_dir = os.path.join(os.getcwd(), 'templates')
+        self.app = Flask(__name__, template_folder=template_dir)
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app.config['SECRET_KEY'] = 'test'
@@ -72,6 +74,65 @@ class TestUserManagement(unittest.TestCase):
         with self.app.app_context():
             count = Location.query.filter_by(user_id=self.user_id).count()
             self.assertEqual(count, 0)
+            
+    def test_delete_user_admin_success(self):
+        # Set Env Key
+        os.environ['CONFIG_ACCESS_KEY'] = 'secretkey'
+
+        # 1. Create administrator user with password
+        with self.app.app_context():
+            admin = User(username='admin', email='admin@test.com', password='adminpass', role=UserRole.ADMIN)
+            db.session.add(admin)
+            db.session.commit()
+            admin_id = admin.id
+            
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = admin_id
+            sess['role'] = 'admin'
+            
+        # 2. Try delete with CONFIG_ACCESS_KEY (not admin db pass)
+        response = self.client.post(f'/config/users/{self.user_id}/delete', data={'confirmation_password': 'secretkey'})
+        self.assertEqual(response.status_code, 302)
+        
+        with self.app.app_context():
+             user = User.query.get(self.user_id)
+             self.assertIsNone(user)
+             
+    def test_delete_user_admin_fail_password(self):
+         # 1. Create administrator user
+        with self.app.app_context():
+            admin = User(username='admin2', email='admin2@test.com', password='adminpass', role=UserRole.ADMIN)
+            db.session.add(admin)
+            db.session.commit()
+            admin_id = admin.id
+            
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = admin_id
+            sess['role'] = 'admin'
+            
+        # 2. Try delete with WRONG password
+        # Expect 403 status code but with HTML content (our error page)
+        response = self.client.post(f'/config/users/{self.user_id}/delete', data={'confirmation_password': 'wrongpass'})
+        self.assertEqual(response.status_code, 403)
+        self.assertIn(b'Action Failed', response.data) # Check for text from error.html
+        
+        with self.app.app_context():
+             user = User.query.get(self.user_id)
+             self.assertIsNotNone(user)
+             
+    def test_delete_user_key_success(self):
+        os.environ['CONFIG_ACCESS_KEY'] = 'secretkey'
+        
+        with self.client.session_transaction() as sess:
+            sess['config_access'] = True
+            
+        # 2. Try delete with correct key
+        response = self.client.post(f'/config/users/{self.user_id}/delete', data={'confirmation_password': 'secretkey'})
+        self.assertEqual(response.status_code, 302)
+        
+        with self.app.app_context():
+             user = User.query.get(self.user_id)
+             self.assertIsNone(user)
 
 if __name__ == '__main__':
     unittest.main()

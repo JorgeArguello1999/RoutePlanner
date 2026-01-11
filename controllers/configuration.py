@@ -47,11 +47,11 @@ def update_role(request, user_id):
     """Update user role"""
     user = User.query.get(user_id)
     if not user:
-        return "User not found", 404
+        return render_template(f'{TEMPLATES_DIR}error.html', error="User not found"), 404
         
     new_role = request.form.get('role')
     if new_role not in [r.value for r in UserRole]:
-        return "Invalid role", 400
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Invalid role"), 400
         
     try:
         user.role = UserRole(new_role)
@@ -59,7 +59,7 @@ def update_role(request, user_id):
     except Exception as e:
         db.session.rollback()
         print(e)
-        return "Error updating role", 500
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Error updating role"), 500
         
     return redirect(url_for('configuration.config_index'))
 
@@ -67,11 +67,11 @@ def update_password(request, user_id):
     """Update user password"""
     user = User.query.get(user_id)
     if not user:
-        return "User not found", 404
+        return render_template(f'{TEMPLATES_DIR}error.html', error="User not found"), 404
         
     new_password = request.form.get('password')
     if not new_password:
-        return "Password required", 400
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Password required"), 400
         
     try:
         user.password = new_password
@@ -79,15 +79,16 @@ def update_password(request, user_id):
     except Exception as e:
         db.session.rollback()
         print(e)
-        return "Error updating password", 500
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Error updating password"), 500
         
     return redirect(url_for('configuration.config_index'))
+
 
 def delete_routes(request, user_id):
     """Delete all text routes (locations) for a user"""
     user = User.query.get(user_id)
     if not user:
-        return "User not found", 404
+        return render_template(f'{TEMPLATES_DIR}error.html', error="User not found"), 404
         
     try:
         Location.query.filter_by(user_id=user_id).delete()
@@ -95,6 +96,35 @@ def delete_routes(request, user_id):
     except Exception as e:
         db.session.rollback()
         print(e)
-        return "Error deleting routes", 500
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Error deleting routes"), 500
+        
+    return redirect(url_for('configuration.config_index'))
+
+def delete_user(request, user_id):
+    """Delete a user and their locations"""
+    target_user = User.query.get(user_id)
+    if not target_user:
+        return render_template(f'{TEMPLATES_DIR}error.html', error="User not found"), 404
+    
+    confirmation_password = request.form.get('confirmation_password')
+    if not confirmation_password:
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Confirmation password required"), 400
+        
+    # Verify Auth: Always check against CONFIG_ACCESS_KEY (Admin Password from Env)
+    env_key = os.getenv('CONFIG_ACCESS_KEY')
+    if confirmation_password != env_key:
+         return render_template(f'{TEMPLATES_DIR}error.html', error="Invalid confirmation password (Env Key)"), 403
+         
+    try:
+        # Delete locations first (if not cascading) - assumed cascade or manual
+        Location.query.filter_by(user_id=user_id).delete()
+        
+        # Delete User
+        db.session.delete(target_user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(e)
+        return render_template(f'{TEMPLATES_DIR}error.html', error="Error deleting user"), 500
         
     return redirect(url_for('configuration.config_index'))

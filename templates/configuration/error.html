@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %} Configuration Error {% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-6">
+        <div class="card card-danger card-outline">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                    Action Failed
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light border-danger text-danger">
+                    <h5><i class="icon bi bi-ban"></i> Error!</h5>
+                    {{ error }}
+                </div>
+                <p class="text-muted">
+                    We gathered some information about this error to help troubleshooting.
+                    Please try again or contact the administrator if the problem persists.
+                </p>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ back_url | default(url_for('configuration.config_index')) }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
