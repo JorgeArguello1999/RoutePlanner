@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %} Configuration {% endblock %}
+
+{% block content %}
+<div class="app-content-header">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-6">
+                <h3 class="mb-0">Configuration</h3>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-end">
+                    <li class="breadcrumb-item"><a href="#">Home</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Configuration</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="app-content">
+    <div class="container-fluid">
+        <!-- Environment Settings Removed as requested -->
+
+        <!-- User Management Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card card-outline card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">User Management</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Routes (Locations)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td><span
+                                            class="badge bg-{{ 'danger' if user.role == 'admin' else 'secondary' }}">{{
+                                            user.role }}</span></td>
+                                    <td>{{ user.routes_count }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                            data-bs-target="#roleModal{{ user.id }}">
+                                            <i class="bi bi-person-gear"></i> Role
+                                        </button>
+                                        <button class="btn btn-sm btn-info" data-bs-toggle="modal"
+                                            data-bs-target="#passwordModal{{ user.id }}">
+                                            <i class="bi bi-key"></i> Pass
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                            data-bs-target="#deleteRoutesModal{{ user.id }}">
+                                            <i class="bi bi-trash"></i> Routes
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                            data-bs-target="#deleteUserModal{{ user.id }}" title="Delete User">
+                                            <i class="bi bi-person-x"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Role Modal -->
+                                <div class="modal fade" id="roleModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="{{ url_for('configuration.update_role', user_id=user.id) }}"
+                                            method="post">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Change Role: {{ user.username }}</h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <select name="role" class="form-select">
+                                                        {% for role in roles %}
+                                                        <option value="{{ role }}" {{ 'selected' if role==user.role
+                                                            else '' }}>{{ role }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-primary">Save changes</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Password Modal -->
+                                <div class="modal fade" id="passwordModal{{ user.id }}" tabindex="-1"
+                                    aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="{{ url_for('configuration.update_password', user_id=user.id) }}"
+                                            method="post">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Change Password: {{ user.username }}</h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <input type="password" name="password" class="form-control"
+                                                        placeholder="New Password" required>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-primary">Update
+                                                        Password</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Delete Routes Modal -->
+                                <div class="modal fade" id="deleteRoutesModal{{ user.id }}" tabindex="-1"
+                                    aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="{{ url_for('configuration.delete_routes', user_id=user.id) }}"
+                                            method="post">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete Routes: {{ user.username }}</h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-danger">Are you sure you want to delete ALL {{
+                                                        user.routes_count }} locations for this user? This cannot be
+                                                        undone.</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger">Delete All
+                                                        Routes</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Delete User Modal -->
+                                <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1"
+                                    aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="{{ url_for('configuration.delete_user', user_id=user.id) }}"
+                                            method="post">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title text-danger">Delete User: {{ user.username }}
+                                                    </h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-danger"><strong>WARNING:</strong> This will delete
+                                                        the user and ALL their locations. This cannot be undone.</p>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Confirm Deletion</label>
+                                                        <input type="password" name="confirmation_password"
+                                                            class="form-control"
+                                                            placeholder="Enter Admin Password or Access Key" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger">Delete User</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

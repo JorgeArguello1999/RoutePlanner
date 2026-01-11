@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %} Configuration Login {% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-4">
+        <div class="card card-outline card-primary">
+            <div class="card-header text-center">
+                <span class="h1"><b>Config</b> Login</span>
+            </div>
+            <div class="card-body">
+                <p class="login-box-msg">Enter Access Key to Configure</p>
+
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <form action="{{ url_for('configuration.config_login', next=request.args.get('next')) }}" method="post">
+                    <div class="input-group mb-3">
+                        <input type="password" class="form-control" name="access_key" placeholder="Access Key" required>
+                        <div class="input-group-text">
+                            <span class="bi bi-key"></span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary d-block w-100">Access Configuration</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

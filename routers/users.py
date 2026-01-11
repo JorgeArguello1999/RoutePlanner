@@ -1,7 +1,8 @@
 from flask import Blueprint
 from flask import request
 
-from controllers.users import signup_page, signin_page, signout_page
+from controllers.users import signup_page, signin_page, signout_page, update_profile_page, change_password_page
+from utils.auth import login_required
 
 users = Blueprint('users', __name__, url_prefix='/users')
 
@@ -25,6 +26,24 @@ def users_signin():
 def users_signout():
     try:
         return signout_page(request)
+    except Exception as e:
+        print(e)
+        return "An error occurred", 500
+
+@users.route('/update', methods=['GET', 'POST'])
+@login_required
+def users_update():
+    try:
+        return update_profile_page(request)
+    except Exception as e:
+        print(e)
+        return "An error occurred", 500
+
+@users.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def users_change_password():
+    try:
+        return change_password_page(request)
     except Exception as e:
         print(e)
         return "An error occurred", 500
