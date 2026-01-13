@@ -1,8 +1,8 @@
-# JAAG Maps
+# Route Planner
 
-![JAAG Maps Logo](static/imgs/logo_favicon.png)
+![Route Planner](static/imgs/logo_favicon.png)
 
-**JAAG Maps** is a Flask-based web application designed for managing locations and visualizing routes using advanced graph algorithms.
+**Route Planner** is a Flask-based web application designed for managing locations and visualizing routes using advanced graph algorithms.
 
 ## Features
 
@@ -11,7 +11,7 @@
 - **Route Planning**: Create and manage locations with ease.
 
 ### 🕸️ Graph & Network Analysis
-Powered by **NetworkX** and **Matplotlib**, JAAG Maps offers powerful graph visualization capabilities:
+Powered by **NetworkX** and **Matplotlib**, Route Planner offers powerful graph visualization capabilities:
 - **Graph Representation**: Locations are treated as nodes in a network.
 - **Routing Algorithms**: Calculate distances and optimal paths using the Haversine formula.
 - **Visual Analytics**: Generate visual representations of your location network.

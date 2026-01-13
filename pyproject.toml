@@ -1,5 +1,5 @@
 [project]
-name = "jaag-maps"
+name = "route-planner"
 version = "0.1.0"
 description = "Little projecto develop on my programming class"
 readme = "README.md"
