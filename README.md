@@ -54,10 +54,44 @@ This project leverages a modern Python stack:
     flask run
     ```
 
-5.  **Docker Support**:
-    Alternatively, run with Docker Compose:
+## Docker Support
+
+You can run the application and a PostgreSQL database easily using Docker Compose.
+
+### Prerequisites
+- Docker and Docker Compose installed on your machine.
+
+### How to Run
+
+1.  **Build and Start:**
     ```bash
     docker-compose up --build
     ```
-    This starts the app at `http://localhost:5000` with a PostgreSQL database.
+    To run in background mode (detached):
+    ```bash
+    docker-compose up --build -d
     ```
+
+2.  **Access the Application:**
+    Open your browser and navigate to:
+    [http://localhost:5000](http://localhost:5000)
+
+3.  **Stop the Application:**
+    ```bash
+    docker-compose down
+    ```
+
+### Configuration
+
+- **Ports:**
+    - Web Application: `5000`
+    - PostgreSQL Database: `5432`
+
+- **Database:**
+    - A PostgreSQL container is spun up automatically.
+    - Data is persisted in a docker volume `postgres_data`.
+
+- **Development:**
+    - The current directory is mounted into the container at `/app`.
+    - `FLASK_ENV` is set to `development` with debug mode enabled.
+    - Changes to the code will trigger a reload.
