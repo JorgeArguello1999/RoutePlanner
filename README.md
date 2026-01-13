@@ -53,3 +53,11 @@ This project leverages a modern Python stack:
     ```bash
     flask run
     ```
+
+5.  **Docker Support**:
+    Alternatively, run with Docker Compose:
+    ```bash
+    docker-compose up --build
+    ```
+    This starts the app at `http://localhost:5000` with a PostgreSQL database.
+    ```
