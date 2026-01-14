@@ -1,0 +1,33 @@
+name: route-planner
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - FLASK_ENV=development
+      - DEBUG=True
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://user:password@db:5432/routeplanner
+      - SECRET_KEY=dev_secret_key
+      - ENCRYPTION_KEY=dev_encryption_key
+      - CONFIG_ACCESS_KEY=admin
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=routeplanner
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

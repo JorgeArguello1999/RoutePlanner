@@ -12,4 +12,5 @@ dependencies = [
     "cryptography>=44.0.0",
     "matplotlib>=3.10.8",
     "networkx>=3.6.1",
+    "psycopg2-binary>=2.9.9",
 ]

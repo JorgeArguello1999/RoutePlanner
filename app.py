@@ -28,4 +28,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Verification failed: {e}")
 
-    app.run(debug=getenv('DEBUG'))
+    app.run(host=getenv('HOST', '127.0.0.1'), port=int(getenv('PORT', 5000)), debug=getenv('DEBUG'))
