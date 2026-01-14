@@ -1,0 +1,31 @@
+services:
+  web:
+    image: jorgearguello/route-planner:0.1
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/routeplanner
+      - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change_this_encryption_key_in_production}
+      - CONFIG_ACCESS_KEY=${CONFIG_ACCESS_KEY:-admin}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=routeplanner
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
