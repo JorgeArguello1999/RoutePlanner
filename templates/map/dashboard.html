@@ -44,7 +44,7 @@
                 <div class="small-box text-bg-primary">
                     <div class="inner">
                         <h3>{{ locations_count }}</h3>
-                        <p>Total Routes</p>
+                        <p>Total Locations</p>
                     </div>
                     <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -54,7 +54,26 @@
                     </svg>
                     <a href="/routes/"
                         class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                        Manage Routes <i class="bi bi-arrow-right"></i>
+                        Manage Locations <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <!-- Saved Trips Card -->
+            <div class="col-lg-3 col-6">
+                <div class="small-box text-bg-success">
+                    <div class="inner">
+                        <h3>{{ history_count }}</h3>
+                        <p>Saved Trips</p>
+                    </div>
+                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path clip-rule="evenodd" fill-rule="evenodd"
+                            d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z">
+                        </path>
+                    </svg>
+                    <a href="/history/"
+                        class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                        View History <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>
