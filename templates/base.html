@@ -102,6 +102,7 @@
                             </a>
                         </li>
 
+                        {% if session.get('role') == 'admin' %}
                         <li class="nav-header">SETTINGS</li>
                         <li class="nav-item">
                             <a href="{{ url_for('users.users_update') }}"
@@ -117,6 +118,7 @@
                                 <p>Configuration</p>
                             </a>
                         </li>
+                        {% endif %}
                     </ul>
                     <!--end::Sidebar Menu-->
                 </nav>
