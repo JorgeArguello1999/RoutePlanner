@@ -103,6 +103,16 @@
                                 <div class="col-md-6 offset-md-3">
                                     <div class="card card-body bg-light">
                                         <h6 class="card-title text-muted mb-2">Intermediate Coordinates</h6>
+                                        <div class="mb-2">
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" class="form-control" id="searchMidQuery"
+                                                    placeholder="Search intermediate point..."
+                                                    onkeydown="if(event.key === 'Enter'){event.preventDefault(); searchMidLocation();}">
+                                                <button class="btn btn-outline-secondary" type="button"
+                                                    onclick="searchMidLocation()">Search</button>
+                                            </div>
+                                            <div id="searchMidResults" class="list-group mt-1"></div>
+                                        </div>
                                         <div class="row">
                                             <div class="col-6">
                                                 <input type="number" step="any" class="form-control form-control-sm"
@@ -363,5 +373,50 @@
     }
 
 
+
+    function searchMidLocation() {
+        const query = document.getElementById('searchMidQuery').value;
+        if (!query) return;
+
+        const resultsDiv = document.getElementById('searchMidResults');
+        resultsDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Searching...</div>';
+
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=3`)
+            .then(response => response.json())
+            .then(data => {
+                resultsDiv.innerHTML = '';
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="list-group-item text-danger">No results found</div>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const name = item.display_name;
+
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action p-1';
+                    a.style.fontSize = '0.8rem';
+                    a.innerHTML = `${name}`;
+                    a.onclick = (e) => {
+                        e.preventDefault();
+                        selectNominatimMidLocation(item);
+                    };
+                    resultsDiv.appendChild(a);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                resultsDiv.innerHTML = '<div class="list-group-item text-danger">Error</div>';
+            });
+    }
+
+    function selectNominatimMidLocation(item) {
+        document.getElementById('midLat').value = parseFloat(item.lat).toFixed(6);
+        document.getElementById('midLon').value = parseFloat(item.lon).toFixed(6);
+
+        document.getElementById('searchMidResults').innerHTML = '';
+        document.getElementById('searchMidQuery').value = '';
+    }
 </script>
 {% endblock %}
