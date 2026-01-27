@@ -118,9 +118,11 @@
                             </div>
                         </form>
                         <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
-                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span></p>
+                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span> <span
+                                    id="timeValue" class="text-muted ms-2"></span></p>
                             <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span
-                                    id="graphDistValue"></span></p>
+                                    id="graphDistValue"></span> <span id="graphTimeValue"
+                                    class="text-muted ms-2"></span></p>
                         </div>
                     </div>
                 </div>
@@ -283,6 +285,12 @@
 
             document.getElementById('graphDistValue').innerText = `${graphDistance} km`;
 
+            // Graph Time (60 km/h)
+            const graphTimeHours = graphDistance / 60;
+            const graphTimeMins = Math.round(graphTimeHours * 60);
+            const graphTimeStr = graphTimeMins < 60 ? `${graphTimeMins} min` : `${graphTimeHours.toFixed(1)} hr`;
+            document.getElementById('graphTimeValue').innerText = `(~${graphTimeStr})`;
+
             // OSRM Routing
             let osrmUrl = '';
             if (locMid) {
@@ -298,7 +306,13 @@
                         const route = data.routes[0];
                         const distanceKm = (route.distance / 1000).toFixed(2);
 
+                        // OSRM Duration is in seconds
+                        const durationSecs = route.duration;
+                        const durationMins = Math.round(durationSecs / 60);
+                        const durationStr = durationMins < 60 ? `${durationMins} min` : `${(durationMins / 60).toFixed(1)} hr`;
+
                         document.getElementById('distValue').innerText = `${distanceKm} km`;
+                        document.getElementById('timeValue').innerText = `(${durationStr})`;
                         document.getElementById('distanceResult').style.display = 'block';
 
                         // Draw Route
@@ -323,7 +337,15 @@
                             }).addTo(map).bindPopup('Intermediate Point');
                         }
 
-                        currentRouteLine.bindPopup(`Total Road Distance: ${distanceKm} km<br>Total Graph Distance: ${graphDistance} km`).openPopup();
+                        currentRouteLine.bindPopup(`
+                            <b>Road Route</b><br>
+                            Distance: ${distanceKm} km<br>
+                            Time: ${durationStr}<br>
+                            <hr class="my-1">
+                            <b>Graph (Direct)</b><br>
+                            Distance: ${graphDistance} km<br>
+                            Time: ~${graphTimeStr}
+                        `).openPopup();
                         map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
 
                     } else {
