@@ -99,7 +99,7 @@ def generate_route_pdf(graph_image_io, route_details=None, map_image_base64=None
     
     pdf.ln(10)
     pdf.set_font("Arial", size=10)
-    pdf.multi_cell(0, 10, "This report was generated automatically by JAAG Maps Route Planner.")
+    pdf.multi_cell(0, 10, "This report was generated automatically by RoutePlanner.")
 
     # Return PDF as bytes
     # FPDF2 output() returns bytearray if no arguments are passed (since v2.5.0)

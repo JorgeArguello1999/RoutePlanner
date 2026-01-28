@@ -1,93 +1,44 @@
-# Technical Report - JAAG Maps Route Planner
+# Technical Report - RoutePlanner
 
-## 1. Project Configuration & Modular Structure
+## 1. Project Configuration and Modular Structure
 
-**Compliance**: Rubric Point 1
-The project is built using **Flask** and follows a modular **MVC (Model-View-Controller)** architecture.
-
-- **Blueprints**: The application uses Flask Blueprints to organize routes (`routers/`) separating logic for Users, Locations, Graphs, and Dashboard.
-- **Folder Structure**:
-  - `app.py`: Entry point.
-  - `models/`: Database models (SQLAlchemy).
-  - `controllers/`: Business logic.
-  - `routers/`: HTTP route definitions.
-  - `templates/`: HTML files (Jinja2).
-  - `static/`: CSS (AdminLTE), JS, Images.
+The RoutePlanner project has been developed using the Python Flask microframework, implementing a Model-View-Controller (MVC) software architecture to ensure code scalability and maintainability. This structure allows for the decoupling of business logic, user interface, and data management. To organize the application routes efficiently, Flask's Blueprint functionality has been utilized. This facilitates the division of the application into separate logical components, such as user management, location administration, graph generation, and the main dashboard. The directory structure reflects this modular architecture, with distinct folders for models (SQLAlchemy), controllers (business logic), routers (HTTP endpoints), templates (Jinja2), and static assets.
 
 ## 2. MySQL Database Integration
 
-**Compliance**: Rubric Point 2 & 3
+Data persistence is managed through a MySQL relational database management system. To interact with the database from the Python application, the project employs Flask-SQLAlchemy, which provides a robust and efficient Object-Relational Mapping (ORM) layer. This allows for data manipulation using Python classes and objects instead of raw SQL queries, improving code readability and security. The database schema is maintained and versioned using Flask-Migrate, ensuring safe and incremental structural changes. The system implements comprehensive Create, Read, Update, and Delete (CRUD) operations for its core entities, primarily Users and Locations.
 
-- **Database**: MySQL is used as the persistent storage.
-- **ORM**: The project uses **Flask-SQLAlchemy** for database interactions.
-- **Migrations**: **Flask-Migrate** (Alembic) is configured for handling database schema changes.
-- **Entities**:
-  - `User`: Manages authentication and roles.
-  - `Location`: Stores user-defined locations (Latitude/Longitude).
-- **CRUD**: Full Create, Read, Update, Delete functionality is implemented for Locations via `controllers/locations.py` and `routers/locations.py`.
+![User Management Interface](manageusers.png)
+*Figure 1: The User Management interface allowing administrators to control system access.*
 
-## 3. Graph Management & Routing Algorithm
+## 3. Graph Management and Routing Algorithm
 
-**Compliance**: Rubric Point 4
+The functional core of the route planner lies in its ability to model geographical locations as a mathematical graph and calculate optimal routes. For this purpose, the NetworkX library is used. The system dynamically constructs a graph where each location stored in the database becomes a node. The edges or connections between these nodes are established by calculating the real distance between them using the Haversine formula, which accounts for the Earth's curvature to offer adequate geographical precision. To determine the most efficient route, Dijkstra's Algorithm has been implemented. This algorithm explores the graph to find the shortest path between an origin node and a destination node, minimizing the total weight of the traversed edges.
 
-- **Library**: **NetworkX** is used for graph manipulation and pathfinding.
-- **Visualization**: **Matplotlib** is used to generate visual representations of the graph, which are rendered as PNG images.
-- **Algorithm**: **Dijkstra's Shortest Path Algorithm** (`nx.shortest_path`) is implemented in `controllers/graphs.py` to calculate the optimal route between locations based on Haversine distance.
-  - The graph is dynamically constructed from user locations.
-  - Edges are weighted by distance.
-  - The computed path is highlighted in Red in the generated graph image.
+![Route Calculation and Graph Visualization](routes.png)
+*Figure 2: Visualization of a calculated route, highlighting the optimal path derived from Dijkstra's algorithm.*
 
-## 4. User Interface
+## 4. User Interface and User Experience (UX)
 
-**Compliance**: Rubric Point 5
+The user interface has been designed using the AdminLTE 3 framework, which is built upon Bootstrap 5. This guarantees a modern, clean, and fully responsive design that adapts to different screen sizes and devices. The main dashboard integrates an interactive map powered by the Leaflet.js library. This map allows users to visualize their saved locations, interact with markers, and select geographical points intuitively. User experience is enhanced through the use of JavaScript for dynamic page updates without full reloads, providing immediate feedback via visual indicators during actions such as saving a location or calculating a route.
 
-- **Framework**: **AdminLTE 3** (based on **Bootstrap 5**) is used for the UI/UX.
-- **Design**: The dashboard provides an interactive map (Leaflet.js) and a responsive sidebar navigation.
-- **Feedback**: Users receive visual feedback (spinners, alerts) during actions like saving locations or calculating routes.
+![Main Dashboard with Interactive Map](dashboard.png)
+*Figure 3: The main application dashboard featuring the interactive map and navigation controls.*
 
-## 5. Routes & Controllers
+## 5. Routes and Controllers
 
-**Compliance**: Rubric Point 6
+The system's API follows RESTful principles, defining clear and standardized endpoints for each resource. HTTP operations (GET, POST, PUT, DELETE) are used semantically to indicate the action to be performed on resources. Data validation logic is centralized in the controller layer, ensuring that only data meeting integrity and format requirements is processed and stored. This strict separation between route definitions and business logic facilitates unit testing and code reuse across different parts of the application.
 
-- **Endpoints**: standardized RESTful-like endpoints (e.g., `/locations/` GET/POST, `/locations/<id>` PUT/DELETE).
-- **Validation**: Input validation is handled in the controller layer.
-- **Methods**: Proper use of HTTP verbs (GET, POST, PUT, DELETE).
+## 6. Code Quality and Security
 
-## 6. Code Quality
+The project adheres to high standards of code quality and security. Sensitive configuration, such as database credentials and session secret keys, is managed through environment variables loaded from a `.env` file, preventing confidential information from being exposed in the source code. The authentication system uses secure cryptographic functions provided by the `werkzeug.security` library for password hashing and verification.
 
-**Compliance**: Rubric Point 7
+![User Configuration](userconfig.png)
+*Figure 4: User configuration settings where security parameters and personal details are managed.*
 
-- **Separation of Concerns**: Logic is strictly separated between Routers (HTTP handling) and Controllers (Business Logic).
-- **Comments**: Code is documented with docstrings explainig functions.
-- **Configuration**: Environment variables (`.env`) manage sensitive data like DB URLs.
+## 7. Advanced Functionalities: PDF Export and History
 
-## 7. Extra Functionalities
+A standout feature is the advanced PDF report generation system. This functionality combines frontend and backend technologies to produce a document that faithfully represents the user's view. On the client side, the `html2canvas` library is used to capture the exact visual state of the interactive Leaflet map, including zoom level and marker positions. This capture is sent to the server where it is processed alongside route data. The backend performs precise calculations using the Haversine formula to determine exact total distance and estimated travel time. Finally, the `fpdf2` library assembles a professional PDF document containing the captured map image, the schematic graph generated by NetworkX, and detailed coordinate tables. Additionally, the system maintains a comprehensive history of all planned trips.
 
-**Compliance**: Rubric Point 9
-
-- **Authentication**: Secure Login/Signup system with password hashing (`werkzeug.security`).
-- **PDF Export**: Users can export a PDF report of their calculated route, including the route details and the generated graph image.
-- **Trip History**: Completed trips can be saved to a history log.
-
----
-
-## 8. Architecture Diagram
-
-```mermaid
-graph TD
-    User[User Browser] <-->|HTTP Requests| App[Flask App]
-    subgraph Backend
-        App --> Router[Routers (Blueprints)]
-        Router --> Controller[Controllers]
-        Controller --> Model[SQLAlchemy Models]
-        Controller --> NetworkX[Graph Engine]
-        Controller --> PDF[PDF Generator]
-    end
-    subgraph Data
-        Model <--> MySQL[(MySQL Database)]
-    end
-    subgraph Output
-        NetworkX -->|image/png| User
-        PDF -->|application/pdf| User
-    end
-```
+![Trip History Log](TripHistory.png)
+*Figure 5: The Trip History log displaying previously calculated routes and their details.*

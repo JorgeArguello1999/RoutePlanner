@@ -1,131 +1,77 @@
-# Route Planner
+# RoutePlanner
 
-![Route Planner](static/imgs/logo_favicon.png)
+![Home Page](docs/home.png)
 
-**Route Planner** is a Flask-based web application designed for managing locations and visualizing routes using advanced graph algorithms.
+**RoutePlanner** is a comprehensive web application designed for managing geographical locations and calculating optimal routes. It leverages advanced graph algorithms like **Dijkstra** to find the shortest paths and provides professional reporting features with PDF export capabilities.
 
-## Features
+## 🚀 Features
 
-### 🌍 Interactive Maps
+### 🗺️ Interactive Maps & Routing
 
-- **Leaflet Integration**: Visualize locations and routes on an interactive map.
-- **Route Planning**: Create and manage locations with ease.
+- **Leaflet Integration**: Visualize your world with interactive maps.
+- **Route Planning**: Select Start, End, and Intermediate points to calculate the best route.
+- **Dijkstra's Algorithm**: backend logic ensures the shortest path using Haversine distance.
 
-### 🕸️ Graph & Network Analysis
+![Dashboard and Map](docs/dashboard.png)
 
-Powered by **NetworkX** and **Matplotlib**, Route Planner offers powerful graph visualization capabilities:
+### 📊 Advanced Reporting
 
-- **Graph Representation**: Locations are treated as nodes in a network.
-- **Routing Algorithms**: Calculate distances and optimal paths using the Haversine formula.
-- **Visual Analytics**: Generate visual representations of your location network.
+- **PDF Export**: Generate detailed route reports including:
+  - **Visual Map Capture**: Client-side capture of the map layout.
+  - **Metrics**: Total distance and estimated travel time.
+  - **Coordinates**: Precise locations for all waypoints.
 
-### 🔐 Secure Configuration
+![Graph Visualization](docs/routes.png)
 
-- **User Management**: Admin tools to manage users, roles, and permissions.
-- **Secure Access**: Key-based authentication for sensitive configuration settings.
-- **Environment Integration**: Securely loads credentials from environment variables.
+### 🔒 User & Location Management
 
-## Technologies Used
+- **Secure Authentication**: Robust login and role management.
+- **Location Database**: Save, edit, and manage your favorite locations.
+- **Trip History**: Keep track of all your planned journeys.
 
-This project leverages a modern Python stack:
+| User Management | Trip History |
+| :---: | :---: |
+| ![User Management](docs/manageusers.png) | ![Trip History](docs/TripHistory.png) |
 
-### Backend
+## 🛠️ Technology Stack
 
-- **Flask**: Lightweight WSGI web application framework.
-- **SQLAlchemy**: Powerful SQL toolkit and Object-Relational Mapping (ORM).
-- **Flask-Migrate**: Alembic-based database migrations.
-- **Cryptography**: Secure password hashing and encryption.
+- **Backend**: Python, Flask, SQLAlchemy.
+- **Database**: PostgreSQL (Dockerized) / MySQL Compatible.
+- **Frontend**: Bootstrap 5 (AdminLTE), Leaflet.js, Jinja2.
+- **Graph Engine**: NetworkX, Matplotlib.
+- **Reporting**: FPDF2, html2canvas.
 
-### Data Science & Graphs
+![User Configuration](docs/userconfig.png)
 
-- **NetworkX**: Creation, manipulation, and study of complex networks.
-- **Matplotlib**: Comprehensive library for creating static, animated, and interactive visualizations.
+## 🐳 Getting Started (Docker)
 
-### Frontend
+The easiest way to run the application is via Docker Compose.
 
-- **Leaflet.js**: Leading open-source JavaScript library for mobile-friendly interactive maps.
-- **Bootstrap 5 / AdminLTE**: Responsive, mobile-first front-end framework.
+1. **Clone and Build**:
 
-## Getting Started
+   ```bash
+   docker-compose up --build
+   ```
 
-1. Clone the repository.
-2. Install dependencies:
+2. **Access the App**:
+   - Web: [http://localhost:5000](http://localhost:5000)
+   - Database: Port `5432`
 
-    ```bash
-    uv pip install -r requirements.txt
-    # or
-    uv sync
-    ```
+3. **Default Credentials**:
+   - *Check the `.env` file or `docker-compose.yml` for initial setup.*
 
-3. Set up environment variables (`.env`).
-4. Run the application:
+## 📦 Manual Installation
 
-    ```bash
-    flask run
-    ```
+1. **Install Dependencies**:
 
-## Docker Support
+   ```bash
+   uv pip install -r requirements.txt
+   ```
 
-You can run the application and a PostgreSQL database easily using Docker Compose.
+2. **Configure Environment**:
+   - Rename `.env.example` to `.env` and set your `DATABASE_URL`.
+3. **Run**:
 
-### Prerequisites
-
-- Docker and Docker Compose installed on your machine.
-
-### How to Run
-
-1. **Build and Start:**
-
-    ```bash
-    docker-compose up --build
-    ```
-
-    To run in background mode (detached):
-
-    ```bash
-    docker-compose up --build -d
-    ```
-
-2. **Access the Application:**
-    Open your browser and navigate to:
-    [http://localhost:5000](http://localhost:5000)
-
-3. **Stop the Application:**
-
-    ```bash
-    docker-compose down
-    ```
-
-### Configuration
-
-- **Ports:**
-  - Web Application: `5000`
-  - PostgreSQL Database: `5432`
-
-- **Database:**
-  - A PostgreSQL container is spun up automatically.
-  - Data is persisted in a docker volume `postgres_data`.
-
-- **Development:**
-  - The current directory is mounted into the container at `/app`.
-
-### Production Deployment
-
-To run the application in a production-like environment (using `gunicorn` and `nginx`, or simply the production-config container):
-
-1. **Build and Start (Production):**
-
-    ```bash
-    docker-compose -f docker-compose.prod.yml up --build -d
-    ```
-
-2. **Stop (Production):**
-
-    ```bash
-    docker-compose -f docker-compose.prod.yml down
-    ```
-
-3. **Notes:**
-    - Uses `docker-compose.prod.yml`.
-    - Disables debug mode.
-    - Uses a production WSGI server (if configured in Dockerfile) or simply sets `FLASK_ENV=production`.
+   ```bash
+   flask run
+   ```
