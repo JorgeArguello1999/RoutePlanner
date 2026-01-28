@@ -108,23 +108,14 @@
                             </a>
                         </li>
 
-                        {% if session.get('role') == 'admin' %}
                         <li class="nav-header">SETTINGS</li>
                         <li class="nav-item">
                             <a href="{{ url_for('users.users_update') }}"
                                 class="nav-link {{ 'active' if 'users.' in request.endpoint else '' }}">
-                                <i class="nav-icon bi bi-people"></i>
-                                <p>Users</p>
+                                <i class="nav-icon bi bi-person"></i>
+                                <p>User</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ url_for('configuration.config_index') }}"
-                                class="nav-link {{ 'active' if 'configuration.' in request.endpoint else '' }}">
-                                <i class="nav-icon bi bi-gear"></i>
-                                <p>Configuration</p>
-                            </a>
-                        </li>
-                        {% endif %}
                     </ul>
                     <!--end::Sidebar Menu-->
                 </nav>
