@@ -186,8 +186,12 @@
                                     id="saveTripBtn" style="display:none;">
                                     <i class="bi bi-save"></i> Save Trip
                                 </button>
+                                <a href="/graphs/export_pdf" target="_blank" class="btn btn-sm btn-danger"
+                                    id="exportPdfBtn">
+                                    <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                                </a>
                                 <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
-                                    <i class="bi bi-download"></i> Download
+                                    <i class="bi bi-download"></i> Download Image
                                 </a>
                             </div>
                         </div>
@@ -302,7 +306,7 @@
             // Trigger calculation manually since we can't pass 'event' easily
             // We'll create a dummy event or just call logic separate. 
             // For now, let's just properly set values and user can click or we simulate click.
-            // But wait, calculateDistance uses getElementById values, so calling it directly works if values set?
+            // But calculateDistance uses getElementById values, so calling it directly works if values set
             // Yes, calculateDistance(new Event('submit')) would work.
             setTimeout(() => {
                 document.getElementById('distanceForm').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -390,18 +394,26 @@
         if (locA && locB) {
             // Update Graph Image with Highlight
             const graphImg = document.querySelector('img[alt="Location Graph"]');
-            let graphUrl = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
+            let baseParams = `u=${locA.id}&v=${locB.id}`;
+            let extraParams = '';
 
             if (locMid) {
                 if (locMid.id) {
                     // Existing Location
-                    graphUrl += `&mid=${locMid.id}`;
+                    extraParams = `&mid=${locMid.id}`;
                 } else {
                     // Custom Coordinate
-                    graphUrl += `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
+                    extraParams = `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
                 }
             }
-            graphImg.src = graphUrl;
+
+            // Update Image
+            graphImg.src = `/graphs/locations.png?${baseParams}${extraParams}&t=${Date.now()}`;
+
+            // Update PDF Link
+            const exportBtn = document.getElementById('exportPdfBtn');
+            exportBtn.href = `/graphs/export_pdf?${baseParams}${extraParams}`;
+
 
             // Calculate Graph Distance (Haversine)
             let graphDistance = 0;

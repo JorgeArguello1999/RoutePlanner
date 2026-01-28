@@ -1,0 +1,63 @@
+import io
+from fpdf import FPDF
+from datetime import datetime
+
+class RoutePDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 15)
+        self.cell(0, 10, 'Route Planner Report', 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+def generate_route_pdf(graph_image_io, route_details=None):
+    """
+    Generates a PDF report containing the route graph and details.
+    graph_image_io: BytesIO object of the graph image.
+    route_details: Dictionary containing start, end, distance, time, etc.
+    """
+    pdf = RoutePDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Title / Metadata
+    pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1)
+    if route_details:
+        pdf.cell(0, 10, f"Route: {route_details.get('start_name', '?')} -> {route_details.get('end_name', '?')}", 0, 1)
+        pdf.cell(0, 10, f"Total Distance: {route_details.get('distance', 0)} km", 0, 1)
+        pdf.cell(0, 10, f"Estimated Time: {route_details.get('time', '?')}", 0, 1)
+    
+    pdf.ln(10)
+
+    # Add Graph Image
+    # Save BytesIO to a temporary file for FPDF or use direct if supported (FPDF2 supports streams usually)
+    # FPDF2 supports passing the bytes directly if we wrap it, or we can use a temp file.
+    # For safety with most versions, let's write to a temp file or try explicit stream.
+    
+    # Using a temporary file approach is robust
+    import tempfile
+    import os
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+        graph_image_io.seek(0)
+        tmp.write(graph_image_io.read())
+        tmp_path = tmp.name
+    
+    try:
+        # FPDF image takes path
+        pdf.image(tmp_path, x=10, y=None, w=190)
+    finally:
+        os.unlink(tmp_path)
+
+    pdf.ln(10)
+    pdf.set_font("Arial", size=10)
+    pdf.multi_cell(0, 10, "This report was generated automatically by JAAG Maps Route Planner.")
+
+    # Return PDF as bytes
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
