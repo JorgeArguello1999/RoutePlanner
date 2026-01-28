@@ -116,6 +116,16 @@
                                 <p>User</p>
                             </a>
                         </li>
+                        
+                        {% if session.get('role') == 'admin' %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('configuration.config_index') }}"
+                                class="nav-link {{ 'active' if 'configuration.' in request.endpoint else '' }}">
+                                <i class="nav-icon bi bi-people-fill"></i>
+                                <p>Manage Users</p>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                     <!--end::Sidebar Menu-->
                 </nav>
