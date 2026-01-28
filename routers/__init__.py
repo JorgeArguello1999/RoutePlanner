@@ -8,6 +8,7 @@ from routers.locations import locations
 from routers.graphs import graphs
 
 from routers.configuration import configuration
+from routers.history import history_bp
 
 def register_routes(app):
     app.register_blueprint(home_page)
@@ -17,3 +18,4 @@ def register_routes(app):
     app.register_blueprint(locations)
     app.register_blueprint(graphs)
     app.register_blueprint(configuration)
+    app.register_blueprint(history_bp)

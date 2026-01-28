@@ -44,7 +44,7 @@
                 <div class="small-box text-bg-primary">
                     <div class="inner">
                         <h3>{{ locations_count }}</h3>
-                        <p>Total Routes</p>
+                        <p>Total Locations</p>
                     </div>
                     <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -54,7 +54,26 @@
                     </svg>
                     <a href="/routes/"
                         class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                        Manage Routes <i class="bi bi-arrow-right"></i>
+                        Manage Locations <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <!-- Saved Trips Card -->
+            <div class="col-lg-3 col-6">
+                <div class="small-box text-bg-success">
+                    <div class="inner">
+                        <h3>{{ history_count }}</h3>
+                        <p>Saved Trips</p>
+                    </div>
+                    <svg class="small-box-icon" fill="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path clip-rule="evenodd" fill-rule="evenodd"
+                            d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z">
+                        </path>
+                    </svg>
+                    <a href="/history/"
+                        class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                        View History <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>
@@ -103,6 +122,16 @@
                                 <div class="col-md-6 offset-md-3">
                                     <div class="card card-body bg-light">
                                         <h6 class="card-title text-muted mb-2">Intermediate Coordinates</h6>
+                                        <div class="mb-2">
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" class="form-control" id="searchMidQuery"
+                                                    placeholder="Search intermediate point..."
+                                                    onkeydown="if(event.key === 'Enter'){event.preventDefault(); searchMidLocation();}">
+                                                <button class="btn btn-outline-secondary" type="button"
+                                                    onclick="searchMidLocation()">Search</button>
+                                            </div>
+                                            <div id="searchMidResults" class="list-group mt-1"></div>
+                                        </div>
                                         <div class="row">
                                             <div class="col-6">
                                                 <input type="number" step="any" class="form-control form-control-sm"
@@ -118,9 +147,11 @@
                             </div>
                         </form>
                         <div id="distanceResult" class="mt-3 alert alert-info" style="display: none;">
-                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span></p>
+                            <p class="mb-1"><strong>Road Distance (OSRM):</strong> <span id="distValue"></span> <span
+                                    id="timeValue" class="text-muted ms-2"></span></p>
                             <p class="mb-0"><strong>Graph Distance (Haversine):</strong> <span
-                                    id="graphDistValue"></span></p>
+                                    id="graphDistValue"></span> <span id="graphTimeValue"
+                                    class="text-muted ms-2"></span></p>
                         </div>
                     </div>
                 </div>
@@ -150,9 +181,15 @@
                     <div class="card-header border-0">
                         <div class="d-flex justify-content-between">
                             <h3 class="card-title">Location Graph</h3>
-                            <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
-                                <i class="bi bi-download"></i> Download
-                            </a>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-success me-2" onclick="saveCurrentTrip()"
+                                    id="saveTripBtn" style="display:none;">
+                                    <i class="bi bi-save"></i> Save Trip
+                                </button>
+                                <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body text-center">
@@ -174,6 +211,7 @@
     let currentRouteLine = null;
     let midMarker = null;
     let map = null;
+    let lastCalculatedData = null;
 
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Map
@@ -201,6 +239,12 @@
             const optionB = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
             const optionMid = new Option(`${loc.name || loc.city} (${loc.latitude}, ${loc.longitude})`, JSON.stringify(loc));
 
+            // Set IDs as value for easier matching if needed, but we used JSON object.
+            // Let's stick to existing logic but help selection below.
+            optionA.dataset.id = loc.id;
+            optionB.dataset.id = loc.id;
+            optionMid.dataset.id = loc.id;
+
             selectA.add(optionA);
             selectB.add(optionB);
             selectMid.add(optionMid);
@@ -209,7 +253,95 @@
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [50, 50] });
         }
+
+        // Check for Retake Params
+        const urlParams = new URLSearchParams(window.location.search);
+        const startId = urlParams.get('start_id');
+        const endId = urlParams.get('end_id');
+        const midId = urlParams.get('mid_id');
+
+        let shouldCalculate = false;
+
+        if (startId) {
+            // Find option with data-id = startId
+            for (let i = 0; i < selectA.options.length; i++) {
+                if (selectA.options[i].dataset.id == startId) {
+                    selectA.selectedIndex = i;
+                    shouldCalculate = true;
+                    break;
+                }
+            }
+        }
+
+        if (endId) {
+            for (let i = 0; i < selectB.options.length; i++) {
+                if (selectB.options[i].dataset.id == endId) {
+                    selectB.selectedIndex = i;
+                    shouldCalculate = true;
+                    break;
+                }
+            }
+        }
+
+        if (midId) {
+            for (let i = 0; i < selectMid.options.length; i++) {
+                if (selectMid.options[i].dataset.id == midId) {
+                    selectMid.selectedIndex = i;
+                    break;
+                }
+            }
+        } else if (urlParams.get('mid_lat') && urlParams.get('mid_lon')) {
+            // Custom Mid Point
+            selectMid.value = 'custom';
+            toggleCustomCoords();
+            document.getElementById('midLat').value = urlParams.get('mid_lat');
+            document.getElementById('midLon').value = urlParams.get('mid_lon');
+        }
+
+        if (shouldCalculate && startId && endId) {
+            // Trigger calculation manually since we can't pass 'event' easily
+            // We'll create a dummy event or just call logic separate. 
+            // For now, let's just properly set values and user can click or we simulate click.
+            // But wait, calculateDistance uses getElementById values, so calling it directly works if values set?
+            // Yes, calculateDistance(new Event('submit')) would work.
+            setTimeout(() => {
+                document.getElementById('distanceForm').dispatchEvent(new Event('submit', { cancelable: true }));
+            }, 500); // Small delay to let map init
+        }
     });
+
+    function saveCurrentTrip() {
+        if (!lastCalculatedData) return;
+
+        const btn = document.getElementById('saveTripBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+        btn.disabled = true;
+
+        fetch('/history/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(lastCalculatedData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert('Trip saved to history!');
+                } else {
+                    alert('Failed to save trip.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving trip.');
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+    }
 
     function toggleCustomCoords() {
         const midVal = document.getElementById('pointMid').value;
@@ -283,6 +415,36 @@
 
             document.getElementById('graphDistValue').innerText = `${graphDistance} km`;
 
+            // Graph Time (60 km/h)
+            const graphTimeHours = graphDistance / 60;
+            const graphTimeMins = Math.round(graphTimeHours * 60);
+            const graphTimeStr = graphTimeMins < 60 ? `${graphTimeMins} min` : `${graphTimeHours.toFixed(1)} hr`;
+            document.getElementById('graphTimeValue').innerText = `(~${graphTimeStr})`;
+
+            // Enable Save Button
+            document.getElementById('saveTripBtn').style.display = 'inline-block';
+
+            // Store Data for Saving
+            lastCalculatedData = {
+                start_id: locA.id,
+                start_name: locA.name || locA.city,
+                start_lat: locA.latitude,
+                start_lon: locA.longitude,
+
+                end_id: locB.id,
+                end_name: locB.name || locB.city,
+                end_lat: locB.latitude,
+                end_lon: locB.longitude,
+
+                mid_id: locMid ? locMid.id : null,
+                mid_name: locMid ? (locMid.name || locMid.city) : null,
+                mid_lat: locMid ? locMid.latitude : null,
+                mid_lon: locMid ? locMid.longitude : null,
+
+                distance_km: parseFloat(graphDistance), // Using Graph Distance as primary metric for now
+                estimated_time_min: graphTimeMins
+            };
+
             // OSRM Routing
             let osrmUrl = '';
             if (locMid) {
@@ -298,7 +460,13 @@
                         const route = data.routes[0];
                         const distanceKm = (route.distance / 1000).toFixed(2);
 
+                        // OSRM Duration is in seconds
+                        const durationSecs = route.duration;
+                        const durationMins = Math.round(durationSecs / 60);
+                        const durationStr = durationMins < 60 ? `${durationMins} min` : `${(durationMins / 60).toFixed(1)} hr`;
+
                         document.getElementById('distValue').innerText = `${distanceKm} km`;
+                        document.getElementById('timeValue').innerText = `(${durationStr})`;
                         document.getElementById('distanceResult').style.display = 'block';
 
                         // Draw Route
@@ -323,7 +491,15 @@
                             }).addTo(map).bindPopup('Intermediate Point');
                         }
 
-                        currentRouteLine.bindPopup(`Total Road Distance: ${distanceKm} km<br>Total Graph Distance: ${graphDistance} km`).openPopup();
+                        currentRouteLine.bindPopup(`
+                            <b>Road Route</b><br>
+                            Distance: ${distanceKm} km<br>
+                            Time: ${durationStr}<br>
+                            <hr class="my-1">
+                            <b>Graph (Direct)</b><br>
+                            Distance: ${graphDistance} km<br>
+                            Time: ~${graphTimeStr}
+                        `).openPopup();
                         map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
 
                     } else {
@@ -341,5 +517,50 @@
     }
 
 
+
+    function searchMidLocation() {
+        const query = document.getElementById('searchMidQuery').value;
+        if (!query) return;
+
+        const resultsDiv = document.getElementById('searchMidResults');
+        resultsDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Searching...</div>';
+
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=3`)
+            .then(response => response.json())
+            .then(data => {
+                resultsDiv.innerHTML = '';
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="list-group-item text-danger">No results found</div>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const name = item.display_name;
+
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action p-1';
+                    a.style.fontSize = '0.8rem';
+                    a.innerHTML = `${name}`;
+                    a.onclick = (e) => {
+                        e.preventDefault();
+                        selectNominatimMidLocation(item);
+                    };
+                    resultsDiv.appendChild(a);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                resultsDiv.innerHTML = '<div class="list-group-item text-danger">Error</div>';
+            });
+    }
+
+    function selectNominatimMidLocation(item) {
+        document.getElementById('midLat').value = parseFloat(item.lat).toFixed(6);
+        document.getElementById('midLon').value = parseFloat(item.lon).toFixed(6);
+
+        document.getElementById('searchMidResults').innerHTML = '';
+        document.getElementById('searchMidQuery').value = '';
+    }
 </script>
 {% endblock %}
