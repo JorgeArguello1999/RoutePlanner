@@ -57,7 +57,13 @@ def generate_route_pdf(graph_image_io, route_details=None):
     pdf.multi_cell(0, 10, "This report was generated automatically by JAAG Maps Route Planner.")
 
     # Return PDF as bytes
-    pdf_output = io.BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)
-    return pdf_output
+    # Return PDF as bytes
+    # FPDF2 output() returns bytearray if no arguments are passed (since v2.5.0)
+    try:
+        pdf_bytes = pdf.output()
+        return io.BytesIO(bytes(pdf_bytes))
+    except TypeError:
+         # Fallback for older versions or if it requires dest='S'
+         # actually fpdf2 might need a dummy name sometimes or behave differently
+         # Safer approach for some versions:
+         return io.BytesIO(pdf.output(dest='S').encode('latin-1'))
