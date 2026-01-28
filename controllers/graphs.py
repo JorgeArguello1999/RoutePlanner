@@ -95,7 +95,13 @@ def generate_location_graph(user_id, start_id=None, end_id=None, mid_id=None, mi
                     
                     G.add_edge(u.id, v.id, weight=dist)
                     edges.append(uv_edge)
-                    edge_labels[uv_edge] = f"{dist:.2f} km"
+                    
+                    # Calculate estimated time (assuming 60 km/h)
+                    time_hours = dist / 60
+                    time_minutes = int(time_hours * 60)
+                    time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
+                    
+                    edge_labels[uv_edge] = f"{dist:.2f} km\n({time_str})"
                     
                     if uv_edge in highlight_edges:
                         colors.append('red')
@@ -120,7 +126,13 @@ def generate_location_graph(user_id, start_id=None, end_id=None, mid_id=None, mi
                 edge = tuple(sorted((start_id, custom_id)))
                 G.add_edge(start_id, custom_id, weight=dist) # Helper for logic, though separate lists used for drawing
                 edges.append(edge)
-                edge_labels[edge] = f"{dist:.2f} km"
+                
+                # Calculate estimated time
+                time_hours = dist / 60
+                time_minutes = int(time_hours * 60)
+                time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
+                
+                edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
                 colors.append('red')
                 widths.append(3.0)
                 styles.append('solid')
@@ -131,7 +143,13 @@ def generate_location_graph(user_id, start_id=None, end_id=None, mid_id=None, mi
                 edge = tuple(sorted((custom_id, end_id)))
                 G.add_edge(custom_id, end_id, weight=dist)
                 edges.append(edge)
-                edge_labels[edge] = f"{dist:.2f} km"
+                
+                # Calculate estimated time
+                time_hours = dist / 60
+                time_minutes = int(time_hours * 60)
+                time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
+                
+                edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
                 colors.append('red')
                 widths.append(3.0)
                 styles.append('solid')

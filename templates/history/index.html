@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Trip History{% endblock %}
+
+{% block content %}
+<div class="app-content-header">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-6">
+                <h3 class="mb-0">Trip History</h3>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-end">
+                    <li class="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">History</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="app-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">My Saved Trips</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Via</th>
+                                    <th>Distance</th>
+                                    <th>Est. Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trip in history %}
+                                <tr>
+                                    <td>{{ trip.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ trip.start_name or "Custom Point" }}</td>
+                                    <td>{{ trip.end_name or "Custom Point" }}</td>
+                                    <td>
+                                        {% if trip.mid_name or trip.mid_id %}
+                                        {{ trip.mid_name or "Custom Point" }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.2f"|format(trip.distance_km) }} km</td>
+                                    <td>
+                                        {% if trip.estimated_time_min >= 60 %}
+                                        {{ "%.1f"|format(trip.estimated_time_min / 60) }} hr
+                                        {% else %}
+                                        {{ trip.estimated_time_min }} min
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="/dashboard?start_id={{ trip.start_id or '' }}&start_lat={{ trip.start_lat or '' }}&start_lon={{ trip.start_lon or '' }}&start_name={{ trip.start_name or '' }}&end_id={{ trip.end_id or '' }}&end_lat={{ trip.end_lat or '' }}&end_lon={{ trip.end_lon or '' }}&end_name={{ trip.end_name or '' }}&mid_id={{ trip.mid_id or '' }}&mid_lat={{ trip.mid_lat or '' }}&mid_lon={{ trip.mid_lon or '' }}&mid_name={{ trip.mid_name or '' }}"
+                                            class="btn btn-sm btn-primary">
+                                            <i class="bi bi-arrow-repeat"></i> Retake
+                                        </a>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteHistory({{ trip.id }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No saved trips found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function deleteHistory(id) {
+        if (!confirm('Are you sure you want to delete this trip?')) return;
+
+        fetch('/history/' + id, {
+            method: 'DELETE'
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to delete.');
+            }
+        });
+    }
+</script>
+{% endblock %}

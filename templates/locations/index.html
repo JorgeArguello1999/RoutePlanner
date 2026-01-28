@@ -97,6 +97,16 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Search Address</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchQuery" placeholder="Search for a location..."
+                            onkeydown="if(event.key === 'Enter'){event.preventDefault(); searchLocation();}">
+                        <button class="btn btn-outline-primary" type="button" onclick="searchLocation()">Search</button>
+                    </div>
+                    <div id="searchResults" class="list-group mt-2"></div>
+                </div>
+                <hr>
                 <form id="locationForm">
                     <input type="hidden" id="locId">
                     <div class="mb-3">
@@ -244,6 +254,10 @@
         document.getElementById('locName').value = "";
         document.getElementById('locCity').value = "";
         document.getElementById('locCountry').value = "";
+
+        // Clear Search
+        document.getElementById('searchQuery').value = "";
+        document.getElementById('searchResults').innerHTML = "";
         // Don't clear Lat/Long if they were set by map click recently? 
         // Actually, if clicked button directly, we might want to clear or keep. 
         // For simplicity, let's clear if manual button click, but map click sets them.
@@ -251,6 +265,10 @@
     }
 
     function prepareEdit(id) {
+        // Clear Search
+        document.getElementById('searchQuery').value = "";
+        document.getElementById('searchResults').innerHTML = "";
+
         const loc = locationsData.find(l => l.id === id);
         if (loc) {
             document.getElementById('modalTitle').innerText = "Edit Location";
@@ -323,6 +341,67 @@
                     }
                 })
                 .catch(error => console.error('Error:', error));
+        }
+    }
+
+    function searchLocation() {
+        const query = document.getElementById('searchQuery').value;
+        if (!query) return;
+
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Searching...</div>';
+
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`)
+            .then(response => response.json())
+            .then(data => {
+                resultsDiv.innerHTML = '';
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="list-group-item text-danger">No results found</div>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const address = item.address || {};
+                    const city = address.city || address.town || address.village || address.hamlet || address.county || '';
+                    const country = address.country || '';
+                    const name = item.display_name;
+
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action';
+                    a.innerHTML = `<small>${name}</small>`;
+                    a.onclick = (e) => {
+                        e.preventDefault();
+                        selectNominatimLocation(item, city, country);
+                    };
+                    resultsDiv.appendChild(a);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                resultsDiv.innerHTML = '<div class="list-group-item text-danger">Error fetching results</div>';
+            });
+    }
+
+    function selectNominatimLocation(item, city, country) {
+        document.getElementById('locLat').value = parseFloat(item.lat).toFixed(6);
+        document.getElementById('locLong').value = parseFloat(item.lon).toFixed(6);
+        document.getElementById('locCity').value = city;
+        document.getElementById('locCountry').value = country;
+
+        // Use the first part of display name as a suggestion for Name if empty
+        const currentName = document.getElementById('locName').value;
+        if (!currentName) {
+            document.getElementById('locName').value = item.display_name.split(',')[0];
+        }
+
+        document.getElementById('searchResults').innerHTML = '';
+
+        // Center map on result (optional but nice)
+        if (map) {
+            map.setView([item.lat, item.lon], 15);
+            // Verify if we should add a temp marker? Maybe not to avoid confusion with saved ones, 
+            // but user sees the fields filled.
         }
     }
 </script>
