@@ -54,14 +54,47 @@ def export_route_pdf():
         loc = Location.query.get(v)
         if loc: end_name = loc.name or loc.city
 
+    import math
+    def haversine(lat1, lon1, lat2, lon2):
+        R = 6371
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2) * math.sin(dlambda/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
+
+    total_dist = 0
+    # Calculate Distances
+    loc_start = Location.query.get(u) if u else None
+    loc_end = Location.query.get(v) if v else None
+    
+    if loc_start and loc_end:
+        if mid:
+            loc_mid = Location.query.get(mid)
+            if loc_mid:
+                d1 = haversine(loc_start.latitude, loc_start.longitude, loc_mid.latitude, loc_mid.longitude)
+                d2 = haversine(loc_mid.latitude, loc_mid.longitude, loc_end.latitude, loc_end.longitude)
+                total_dist = d1 + d2
+        elif mid_lat and mid_lon:
+             d1 = haversine(loc_start.latitude, loc_start.longitude, mid_lat, mid_lon)
+             d2 = haversine(mid_lat, mid_lon, loc_end.latitude, loc_end.longitude)
+             total_dist = d1 + d2
+        else:
+             total_dist = haversine(loc_start.latitude, loc_start.longitude, loc_end.latitude, loc_end.longitude)
+
+    # Time (60 km/h)
+    hours = total_dist / 60
+    mins = int(hours * 60)
+    time_str = f"{mins} min" if mins < 60 else f"{hours:.1f} hr"
+
     details = {
+        'username': session.get('username', 'User'),
         'start_name': start_name,
         'end_name': end_name,
-        # Distance calculation is inside graph generation drawing logic currently, 
-        # so we might skip exact distance in PDF metadata for now or recalculate if needed.
-        # For Rubric compliance, the Graph Image in the PDF is the most important part.
-        'distance': "See Graph",
-        'time': "See Graph"
+        'mid_name': "Custom Point" if (mid or (mid_lat and mid_lon)) else None, # Simplified for custom
+        'distance': f"{total_dist:.2f}",
+        'time': time_str
     }
 
     pdf_file = generate_route_pdf(graph_img, details)
