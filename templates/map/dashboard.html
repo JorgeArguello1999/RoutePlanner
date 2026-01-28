@@ -186,8 +186,12 @@
                                     id="saveTripBtn" style="display:none;">
                                     <i class="bi bi-save"></i> Save Trip
                                 </button>
+                                <button type="button" class="btn btn-sm btn-danger" id="exportPdfBtn"
+                                    onclick="exportRouteWithMap()">
+                                    <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                                </button>
                                 <a href="/graphs/locations.png" target="_blank" class="btn btn-sm btn-tool">
-                                    <i class="bi bi-download"></i> Download
+                                    <i class="bi bi-download"></i> Download Image
                                 </a>
                             </div>
                         </div>
@@ -205,6 +209,7 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
     // Access locations passed from controller
     const locationsList = {{ locations | safe }};
@@ -302,7 +307,7 @@
             // Trigger calculation manually since we can't pass 'event' easily
             // We'll create a dummy event or just call logic separate. 
             // For now, let's just properly set values and user can click or we simulate click.
-            // But wait, calculateDistance uses getElementById values, so calling it directly works if values set?
+            // But calculateDistance uses getElementById values, so calling it directly works if values set
             // Yes, calculateDistance(new Event('submit')) would work.
             setTimeout(() => {
                 document.getElementById('distanceForm').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -390,18 +395,26 @@
         if (locA && locB) {
             // Update Graph Image with Highlight
             const graphImg = document.querySelector('img[alt="Location Graph"]');
-            let graphUrl = `/graphs/locations.png?u=${locA.id}&v=${locB.id}&t=${Date.now()}`;
+            let baseParams = `u=${locA.id}&v=${locB.id}`;
+            let extraParams = '';
 
             if (locMid) {
                 if (locMid.id) {
                     // Existing Location
-                    graphUrl += `&mid=${locMid.id}`;
+                    extraParams = `&mid=${locMid.id}`;
                 } else {
                     // Custom Coordinate
-                    graphUrl += `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
+                    extraParams = `&mid_lat=${locMid.latitude}&mid_lon=${locMid.longitude}`;
                 }
             }
-            graphImg.src = graphUrl;
+
+            // Update Image
+            graphImg.src = `/graphs/locations.png?${baseParams}${extraParams}&t=${Date.now()}`;
+
+            // Update PDF Link
+            const exportBtn = document.getElementById('exportPdfBtn');
+            exportBtn.href = `/graphs/export_pdf?${baseParams}${extraParams}`;
+
 
             // Calculate Graph Distance (Haversine)
             let graphDistance = 0;
@@ -561,6 +574,78 @@
 
         document.getElementById('searchMidResults').innerHTML = '';
         document.getElementById('searchMidQuery').value = '';
+    }
+
+    function exportRouteWithMap() {
+        if (!lastCalculatedData) {
+            alert("Please calculate a route first.");
+            return;
+        }
+
+        const btn = document.getElementById('exportPdfBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+        btn.disabled = true;
+
+        // Capture Map
+        const mapElement = document.getElementById('map-container');
+
+        // Leaflet maps can have issues with html2canvas due to CORS tiles. 
+        // We attempt to set useCORS: true and allowTaint: false.
+
+        html2canvas(mapElement, {
+            useCORS: true,
+            allowTaint: false,
+            ignoreElements: (element) => element.classList.contains('leaflet-control-container') // Optional: hide controls
+        }).then(canvas => {
+            const mapImage = canvas.toDataURL('image/png');
+
+            // Prepare Data
+            const payload = {
+                u: lastCalculatedData.start_id,
+                v: lastCalculatedData.end_id,
+                mid: lastCalculatedData.mid_id,
+                mid_lat: lastCalculatedData.mid_lat,
+                mid_lon: lastCalculatedData.mid_lon,
+                map_image: mapImage
+            };
+
+            // Use fetch with Blob response to download
+            fetch('/graphs/export_pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    if (response.ok) return response.blob();
+                    throw new Error('Network response was not ok.');
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `route_report_${payload.u}_${payload.v}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Error exporting PDF:', error);
+                    alert('Error generating PDF.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+        }).catch(err => {
+            console.error('Map capture error:', err);
+            alert('Could not capture map image.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
     }
 </script>
 {% endblock %}

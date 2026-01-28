@@ -62,17 +62,58 @@ def generate_location_graph(user_id, start_id=None, end_id=None, mid_id=None, mi
             c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
             return R * c
 
-        # Determine Highlighting
+        # Determine Highlighting using Dijkstra
         highlight_edges = []
+        path_nodes = []
         if start_id and end_id:
-            if mid_id:
-                highlight_edges.append(tuple(sorted((start_id, mid_id))))
-                highlight_edges.append(tuple(sorted((mid_id, end_id))))
-            elif mid_coords:
-                highlight_edges.append(tuple(sorted((start_id, custom_id))))
-                highlight_edges.append(tuple(sorted((custom_id, end_id))))
-            else:
-                highlight_edges.append(tuple(sorted((start_id, end_id))))
+            try:
+                 # Construct valid temporary graph for pathfinding
+                PF_G = nx.Graph()
+                # Add all locations as nodes
+                for loc in locations:
+                    PF_G.add_node(loc.id)
+                if mid_coords:
+                     PF_G.add_node(custom_id)
+
+                # Add edges
+                # 1. Existing locations
+                for i in range(len(locations)):
+                    for j in range(i + 1, len(locations)):
+                        u = locations[i]
+                        v = locations[j]
+                        d = haversine(u.latitude, u.longitude, v.latitude, v.longitude)
+                        PF_G.add_edge(u.id, v.id, weight=d)
+                
+                # 2. Custom Point Edges
+                if mid_coords:
+                    # Connect Custom Point to ALL other nodes to allow finding best path 
+                    # OR just start/end if that's the requirement. 
+                    # For a true "Route Planner", connecting to all lets Dijkstra decide.
+                    # But per previous logic, it seemed to imply Custom is a waypoint between Start/End.
+                    # Let's connect Custom to Start and End.
+                    start_loc = next((l for l in locations if l.id == start_id), None)
+                    end_loc = next((l for l in locations if l.id == end_id), None)
+                    
+                    if start_loc:
+                        d = haversine(start_loc.latitude, start_loc.longitude, mid_lat, mid_lon)
+                        PF_G.add_edge(start_id, custom_id, weight=d)
+                    if end_loc:
+                        d = haversine(mid_lat, mid_lon, end_loc.latitude, end_loc.longitude)
+                        PF_G.add_edge(custom_id, end_id, weight=d)
+
+                # Run Dijkstra
+                path_nodes = nx.shortest_path(PF_G, source=start_id, target=end_id, weight='weight')
+                
+                # Create edges from path nodes
+                for k in range(len(path_nodes) - 1):
+                    u_node = path_nodes[k]
+                    v_node = path_nodes[k+1]
+                    highlight_edges.append(tuple(sorted((u_node, v_node))))
+                    
+            except nx.NetworkXNoPath:
+                print("No path found between selected nodes.")
+            except Exception as e:
+                print(f"Pathfinding error: {e}")
 
         # Draw Edges (Complete Graph for existing locations)
         edges = []
@@ -101,59 +142,57 @@ def generate_location_graph(user_id, start_id=None, end_id=None, mid_id=None, mi
                     time_minutes = int(time_hours * 60)
                     time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
                     
-                    edge_labels[uv_edge] = f"{dist:.2f} km\n({time_str})"
+                    # Only show label if it's on the path to reduce clutter
+                    if uv_edge in highlight_edges:
+                        edge_labels[uv_edge] = f"{dist:.2f} km\n({time_str})"
                     
                     if uv_edge in highlight_edges:
                         colors.append('red')
                         widths.append(3.0)
                         styles.append('solid')
                     else:
-                        colors.append('gray')
+                        colors.append('lightgray') # Lighter for non-path
                         widths.append(1.0)
                         styles.append('dashed')
 
-        # 2. Edges involving Customer Mid Point (only connect to Start and End)
+        # 2. Edges involving Customer Mid Point
         if mid_coords and start_id and end_id:
-            # We need the Location objects for Start and End to calculate distance
+            # We re-calculate purely for drawing if they are part of the path
+            # (If Dijkstra didn't choose them, we might not want to draw them prominently, 
+            # but usually we want to show the Custom point connections if it exists).
+            
+            # Re-find Start/End locs
             start_loc = next((l for l in locations if l.id == start_id), None)
             end_loc = next((l for l in locations if l.id == end_id), None)
-            
             mid_lat, mid_lon = mid_coords
-            
-            # Start -> Custom
-            if start_loc:
-                dist = haversine(start_loc.latitude, start_loc.longitude, mid_lat, mid_lon)
-                edge = tuple(sorted((start_id, custom_id)))
-                G.add_edge(start_id, custom_id, weight=dist) # Helper for logic, though separate lists used for drawing
-                edges.append(edge)
-                
-                # Calculate estimated time
-                time_hours = dist / 60
-                time_minutes = int(time_hours * 60)
-                time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
-                
-                edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
-                colors.append('red')
-                widths.append(3.0)
-                styles.append('solid')
 
-            # Custom -> End
+            potential_custom_edges = []
+            if start_loc:
+                potential_custom_edges.append((start_id, custom_id, haversine(start_loc.latitude, start_loc.longitude, mid_lat, mid_lon)))
             if end_loc:
-                dist = haversine(mid_lat, mid_lon, end_loc.latitude, end_loc.longitude)
-                edge = tuple(sorted((custom_id, end_id)))
-                G.add_edge(custom_id, end_id, weight=dist)
+                 potential_custom_edges.append((custom_id, end_id, haversine(mid_lat, mid_lon, end_loc.latitude, end_loc.longitude)))
+            
+            for u_node, v_node, dist in potential_custom_edges:
+                edge = tuple(sorted((u_node, v_node)))
+                G.add_edge(u_node, v_node, weight=dist)
                 edges.append(edge)
                 
-                # Calculate estimated time
                 time_hours = dist / 60
                 time_minutes = int(time_hours * 60)
                 time_str = f"{time_minutes} min" if time_minutes < 60 else f"{time_hours:.1f} hr"
-                
-                edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
-                colors.append('red')
-                widths.append(3.0)
-                styles.append('solid')
-        
+
+                if edge in highlight_edges:
+                     edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
+                     colors.append('red')
+                     widths.append(3.0)
+                     styles.append('solid')
+                else:
+                     # Draw custom connections even if not on path? Yes, usually.
+                     edge_labels[edge] = f"{dist:.2f} km\n({time_str})"
+                     colors.append('orange')
+                     widths.append(2.0)
+                     styles.append('dotted')
+
         # Draw edges
         nx.draw_networkx_edges(G, pos, edgelist=edges, width=widths, alpha=0.6, edge_color=colors, style=styles)
         
