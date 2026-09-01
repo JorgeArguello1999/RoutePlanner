@@ -1,31 +1,57 @@
+# Producción - despliegue con MySQL 8.0, puerto 8003 interno/externo
+# Uso: docker compose -f docker-compose.prod.yml up -d --build
+# Variables sensibles se pueden inyectar vía .env o entorno del host
+name: route-planner-prod
 services:
   web:
-    image: jorgearguello/route-planner:1.0
+    build: .
+    # En prod también puedes usar imagen prebuilt: descomenta `image:` y comenta `build:`
+    # image: jorgearguello/route-planner:1.0
     restart: always
     ports:
-      - "5000:5000"
+      - "8003:8003"
     environment:
       - FLASK_ENV=production
       - DEBUG=False
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/routeplanner
+      - PORT=8003
+      - FLASK_APP=app.py
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-route_user}:${MYSQL_PASSWORD:-route_password}@db:3306/${MYSQL_DATABASE:-routeplanner}
       - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change_this_encryption_key_in_production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=}
       - CONFIG_ACCESS_KEY=${CONFIG_ACCESS_KEY:-admin}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@routeplanner.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin123!}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   db:
-    image: postgres:15
+    image: mysql:8.0
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_DB=routeplanner
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-routeplanner}
+      - MYSQL_USER=${MYSQL_USER:-route_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-route_password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER:-route_user}", "-p${MYSQL_PASSWORD:-route_password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
 volumes:
-  postgres_data:
+  mysql_data:
