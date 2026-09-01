@@ -138,12 +138,39 @@ The container **auto-creates** an admin on every start (`entrypoint.sh` + `seed.
   ```
 - **Create normal users:** `Sign Up` page (`/users/signup`) → role `user` by default. An admin can promote them in `/configuration`.
 
+**How to know if demo is running? (deploy notifies you)**
+- **During deploy:** `entrypoint.sh` now prints a banner and verification *before* starting gunicorn:
+  ```
+  >> Verifying demo user (AVISO deploy - ¿demo corriendo?)...
+    ✅ DEMO USER READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
+  ========================================
+    RoutePlanner DEPLOY COMPLETE
+    App:      http://localhost:8003
+    Health:   http://localhost:8003/health
+    Demo chk: curl http://localhost:8003/health/demo
+    Login:    http://localhost:8003/users/signin
+    Demo:     admin / Admin123!
+  ========================================
+  ```
+  If it shows `❌ MISMATCH` or `❌ NOT FOUND`, follow the hint (e.g., `ADMIN_FORCE_RESET=true docker compose up -d`).
+
+- **After deploy (runtime):**
+  ```bash
+  docker compose logs web | grep -A5 "DEMO USER"  # deploy aviso
+  curl -s http://localhost:8003/health/demo | python3 -m json.tool
+  # {"demo_ready": true/false, "db": "ok", "hint": "Login en /users/signin..."}
+  curl -s http://localhost:8003/health | python3 -m json.tool  # also includes demo_ready
+  docker compose exec web python seed.py  # manual re-seed if demo missing
+  ```
+
 **If you run without Docker** (SQLite fallback) you still get the admin:
 ```bash
 uv sync
-uv run python seed.py
-uv run python app.py
-# login admin/Admin123! on http://localhost:8003
+# ensure DATABASE_URL is empty (or unset) to use SQLite: leave .env DATABASE_URL blank
+uv run python seed.py          # should print [seed] Created / already exists
+DATABASE_URL= uv run python -c "from app import app; from models.users import User; with app.app_context(): u=User.query.filter_by(username='admin').first(); print(u.check_password('Admin123!'))" # -> True
+uv run python app.py           # http://localhost:8003
+# check demo: curl http://localhost:8003/health/demo | jq .demo_ready
 ```
 
 ---
@@ -169,17 +196,19 @@ uv run python app.py
 
 ---
 
-## Verification
+## Verification (deploy notifies you)
 
 ```bash
 docker compose ps
-docker compose logs web  # should end with "Database initialization complete" + "Starting gunicorn"
-curl -f http://localhost:8003/ && echo "OK"
+docker compose logs web  # should end with "DEMO USER READY" + "DEPLOY COMPLETE" + "Using gunicorn"
+curl -f http://localhost:8003/health && echo "APP OK"
+curl -s http://localhost:8003/health/demo | python3 -m json.tool  # check demo_ready + hint
+docker compose logs web | grep -E "DEMO USER|DEPLOY COMPLETE|HEALTH"
 # login test
-curl -c cookies.txt -b cookies.txt -L http://localhost:8003/users/signin
+curl -c cookies.txt -b cookies.txt -L http://localhost:8003/users/signin -d "username=admin&password=Admin123!"
 ```
 
-Expected `entrypoint.sh` log:
+Expected `entrypoint.sh` log (now with demo aviso):
 ```
 === RoutePlanner Entrypoint ===
 >> Waiting for MySQL to be ready...
@@ -188,9 +217,18 @@ Expected `entrypoint.sh` log:
 >> Ensuring all tables exist...
 >> Seeding default admin user...
   Successfully created admin user: admin / admin@routeplanner.local
+>> Verifying demo user (AVISO deploy - ¿demo corriendo?)...
+  ✅ DEMO USER READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
+========================================
+  RoutePlanner DEPLOY COMPLETE
+  App:      http://localhost:8003
+  Health:   http://localhost:8003/health
+  Demo:     admin / Admin123!
+========================================
 >> Starting application on 0.0.0.0:8003
   Using gunicorn
 ```
+If you see `❌ DEMO USER PASSWORD MISMATCH` → `ADMIN_FORCE_RESET=true docker compose up -d` then `curl /health/demo`.
 
 ---
 
@@ -219,7 +257,7 @@ Notes:
 | `ValueError: ENCRYPTION_KEY must be set` / Fernet invalid | Old `dev_encryption_key` not a valid 44-char Fernet. Now default `0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=` works, or set a real `Fernet.generate_key()`. |
 | `table users already exists` on `flask db upgrade` | DB was created via `create_all` without Alembic stamp. Fixed: entrypoint does `db.create_all()` + `flask db stamp head`. Safe to ignore. |
 | MySQL not ready / `pymysql` connection refused | `entrypoint.sh` waits 120s. Check `docker compose logs db`, ensure `MYSQL_USER`/`MYSQL_PASSWORD` match `DATABASE_URL`. `docker compose down -v` for fresh DB if credentials changed. |
-| `admin` login fails | Check `docker compose logs web` → seeding line. Try `ADMIN_FORCE_RESET=true docker compose up -d` or `uv run python seed.py` locally. |
+| `admin` login fails / `demo_ready:false` | `curl http://localhost:8003/health/demo` shows `hint`. `docker compose logs web \| grep DEMO` shows `MISMATCH/NOT FOUND`. Try `ADMIN_FORCE_RESET=true docker compose up -d` or `docker compose exec web python seed.py` or `DATABASE_URL= uv run python seed.py` for local SQLite. Also check `DATABASE_URL` in `.env` — for local without Docker leave `DATABASE_URL=` blank. |
 | Port already in use `8003` | Change `ports: "8003:8003"` and `PORT` env together, or `lsof -i :8003` / `docker ps`. |
 
 ---

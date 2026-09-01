@@ -19,9 +19,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uvx /bin/uvx
 # Copy the project configuration files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-# --system instala en el python del sistema (container) para que entrypoint y gunicorn lo encuentren sin .venv
-RUN uv sync --frozen --no-cache --system
+# Install dependencies (crea .venv en /app/.venv)
+RUN uv sync --frozen --no-cache
+
+# Asegura que venv esté en PATH para que entrypoint.sh encuentre flask/gunicorn/python
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Copy the application code
 COPY . .
@@ -45,9 +48,9 @@ ENV ADMIN_USERNAME=admin
 ENV ADMIN_EMAIL=admin@routeplanner.local
 ENV ADMIN_PASSWORD=Admin123!
 
-# Healthcheck interno
+# Healthcheck interno - verifica app + DB + demo user via /health
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/ || exit 1
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Entrypoint robusto: espera DB, migra, crea tablas, seed admin y arranca gunicorn
 ENTRYPOINT ["./entrypoint.sh"]

@@ -9,12 +9,27 @@ echo "=== RoutePlanner Entrypoint ==="
 echo "HOST=$HOST PORT=$PORT"
 echo "DATABASE_URL=${DATABASE_URL:-sqlite:///routeplanner.db (fallback)}"
 
+# Ensure .venv exists (dev compose mounts host code over /app, hiding built venv)
+# Anonymous volume /app/.venv in docker-compose.yml will be empty on first run
+if [ ! -f "/app/.venv/bin/flask" ] || [ ! -f "/app/.venv/bin/gunicorn" ]; then
+  echo ">> .venv not found or incomplete (dev volume mount?), running uv sync..."
+  if uv sync --frozen --no-cache; then
+    echo "  uv sync completed"
+  else
+    echo "  WARNING: uv sync failed, trying with --break-system-packages fallback"
+    uv sync --frozen --no-cache || echo "  uv sync still failed, continuing (may fail later)"
+  fi
+fi
+# Ensure PATH includes venv (also set via Dockerfile ENV)
+export PATH="/app/.venv/bin:$PATH"
+export VIRTUAL_ENV="/app/.venv"
+
 # ---------------------------------------------------------
 # 1. Wait for database (MySQL primary, PostgreSQL fallback)
 # ---------------------------------------------------------
 if echo "${DATABASE_URL}" | grep -qi "mysql"; then
   echo ">> Waiting for MySQL to be ready..."
-  python3 << 'PYEOF'
+  uv run python << 'PYEOF'
 import os, time, sys
 from urllib.parse import urlparse
 
@@ -50,7 +65,7 @@ sys.exit(1)
 PYEOF
 elif echo "${DATABASE_URL}" | grep -qi "postgres"; then
   echo ">> Waiting for PostgreSQL to be ready..."
-  python3 << 'PYEOF'
+  uv run python << 'PYEOF'
 import os, time, sys
 from urllib.parse import urlparse
 url = os.getenv("DATABASE_URL","")
@@ -83,7 +98,7 @@ fi
 # 2. Run migrations (flask db upgrade)
 # ---------------------------------------------------------
 echo ">> Running migrations (flask db upgrade)..."
-if flask db upgrade; then
+if uv run flask db upgrade; then
   echo "  Migrations applied successfully"
 else
   echo "  WARNING: flask db upgrade failed, continuing (maybe no migrations needed)"
@@ -93,7 +108,7 @@ fi
 # 3. Ensure all tables exist (covers missing migrations for locations/route_history)
 # ---------------------------------------------------------
 echo ">> Ensuring all tables exist (db.create_all)..."
-python3 << 'PYEOF'
+uv run python << 'PYEOF'
 from app import app
 from models import db
 with app.app_context():
@@ -108,14 +123,14 @@ PYEOF
 
 # Try to stamp alembic to head so future `flask db upgrade` no longer fails on existing tables
 echo ">> Ensuring alembic version is stamped..."
-flask db stamp head 2>&1 | head -n 20 || echo "  stamp head skipped (already stamped or not needed)"
-flask db current 2>&1 | head -n 20 || true
+uv run flask db stamp head 2>&1 | head -n 20 || echo "  stamp head skipped (already stamped or not needed)"
+uv run flask db current 2>&1 | head -n 20 || true
 
 # ---------------------------------------------------------
 # 4. Seed default admin user (idempotent, con todos los permisos)
 # ---------------------------------------------------------
 echo ">> Seeding default admin user..."
-python3 << 'PYEOF'
+uv run python << 'PYEOF'
 import os
 from app import app
 from models import db
@@ -171,6 +186,72 @@ with app.app_context():
 PYEOF
 
 echo ">> Database initialization complete"
+
+# ---------------------------------------------------------
+# 4b. Verify demo user can actually login (AVISO deploy)
+# ---------------------------------------------------------
+echo ">> Verifying demo user (AVISO deploy - ¿demo corriendo?)..."
+uv run python << 'PYEOF'
+import os
+from app import app
+from models.users import User
+
+admin_user = os.getenv("ADMIN_USERNAME", "admin")
+admin_pass = os.getenv("ADMIN_PASSWORD", "Admin123!")
+port = os.getenv("PORT", "8003")
+
+with app.app_context():
+    try:
+        u = User.query.filter_by(username=admin_user).first()
+        if not u:
+            print("  ❌ DEMO USER NOT FOUND")
+            print(f"     Buscado: '{admin_user}' no existe en DB.")
+            print("     Causa: seeding falló o volumen DB corrupto.")
+            print("     Solución: docker compose logs web | grep -i seed  -> revisa error")
+            print("              docker compose down -v && docker compose up --build  (resetea DB limpia)")
+            print(f"              o: docker compose exec web python seed.py")
+        elif not u.is_active:
+            print(f"  ❌ DEMO USER INACTIVO: '{u.username}' (is_active=False)")
+            print("     Solución: activa el usuario en /configuration o DB: is_active=1")
+        elif not u.check_password(admin_pass):
+            print(f"  ❌ DEMO USER PASSWORD MISMATCH para '{admin_user}'")
+            print(f"     El usuario existe (role={u.role.value}, email={u.email}) pero el password en DB NO coincide con ADMIN_PASSWORD='{admin_pass}'")
+            print("     Causa: ya existía con otro password (no se sobrescribe por seguridad).")
+            print("     Soluciones:")
+            print("       1) Loguéate con el password antiguo si lo recuerdas,")
+            print("       2) ADMIN_FORCE_RESET=true docker compose up -d   -> resetea password al del .env")
+            print("       3) docker compose exec web python -c \"from app import app; from models import db; from models.users import User; import os; u=User.query.filter_by(username=os.getenv('ADMIN_USERNAME','admin')).first(); u.password=os.getenv('ADMIN_PASSWORD','Admin123!'); db.session.commit(); print('reset ok')\"")
+        else:
+            print(f"  ✅ DEMO USER READY: '{admin_user}' / '{admin_pass}'")
+            print(f"     Rol: {u.role.value} | Email: {u.email} | ID: {u.id}")
+            print(f"     Login: http://localhost:{port}/users/signin")
+            print(f"     Health: curl http://localhost:{port}/health/demo | jq")
+        # Resumen para health endpoint
+        total = User.query.count()
+        print(f"  [demo-check] total_users={total} demo_ready={bool(u and u.is_active and u.check_password(admin_pass))}")
+    except Exception as e:
+        print(f"  ❌ DEMO CHECK ERROR: {e}")
+        import traceback; traceback.print_exc()
+        print("     Hint: ¿DB conectada? ¿tablas creadas? Revisa: flask db current && db.create_all() logs arriba")
+
+PYEOF
+
+# Banner final MUY visible para el deploy
+echo ""
+echo "========================================"
+echo "  RoutePlanner DEPLOY COMPLETE"
+echo "  App:      http://localhost:${PORT}"
+echo "  Health:   http://localhost:${PORT}/health"
+echo "  Demo chk: curl http://localhost:${PORT}/health/demo"
+echo "  Login:    http://localhost:${PORT}/users/signin"
+echo "  Demo:     ${ADMIN_USERNAME:-admin} / ${ADMIN_PASSWORD:-Admin123!}"
+echo "========================================"
+echo ""
+echo "  Si el demo NO funciona, revisa:"
+echo "    docker compose logs web | grep -A2 -i demo"
+echo "    curl http://localhost:${PORT}/health/demo | python3 -m json.tool"
+echo "    docker compose exec web python seed.py"
+echo ""
 
 # ---------------------------------------------------------
 # 5. Start application

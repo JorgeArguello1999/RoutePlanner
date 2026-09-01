@@ -62,11 +62,16 @@ docker compose -f docker-compose.prod.yml up --build -d
 | `SECRET_KEY` | `dev-secret-key...` | change in prod |
 | `ADMIN_*` | `admin/Admin123!` | demo |
 
-### Verify
+### Verify (¿demo corriendo?)
 ```bash
 docker compose ps
-curl -f http://localhost:8003/ && echo OK
-docker compose logs web | tail -20
+curl -f http://localhost:8003/health && echo "APP OK"
+curl -s http://localhost:8003/health/demo | python3 -m json.tool  # demo_ready:true/false
+docker compose logs web | grep -A5 "DEMO USER"  # deploy avisa: ✅ READY o ❌ MISMATCH/NOT FOUND
+# si demo falla:
+curl -s http://localhost:8003/health/demo | grep hint
+ADMIN_FORCE_RESET=true docker compose up -d   # resetea password al del .env
+# o: docker compose exec web python seed.py
 ```
 
 ### Key Fixes in This Deployment
@@ -130,11 +135,16 @@ docker compose -f docker-compose.prod.yml up --build -d
 | `SECRET_KEY` | `dev-secret-key...` | cambiar en prod |
 | `ADMIN_*` | `admin/Admin123!` | demo |
 
-### Verificar
+### Verificar (¿demo corriendo?)
 ```bash
 docker compose ps
-curl -f http://localhost:8003/ && echo OK
-docker compose logs web | tail -20
+curl -f http://localhost:8003/health && echo "APP OK"
+curl -s http://localhost:8003/health/demo | python3 -m json.tool  # demo_ready:true/false + hint
+docker compose logs web | grep -A5 "DEMO USER"  # el deploy avisa: ✅ READY o ❌ MISMATCH/NOT FOUND
+# si falla:
+curl -s http://localhost:8003/health/demo | grep hint
+ADMIN_FORCE_RESET=true docker compose up -d   # resetea password al del .env
+# o: docker compose exec web python seed.py
 ```
 
 ### Fixes Clave de Este Despliegue

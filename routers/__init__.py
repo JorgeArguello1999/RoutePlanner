@@ -10,6 +10,8 @@ from routers.graphs import graphs
 from routers.configuration import configuration
 from routers.history import history_bp
 
+from routers.health import health
+
 def register_routes(app):
     app.register_blueprint(home_page)
     app.register_blueprint(users)
@@ -19,3 +21,4 @@ def register_routes(app):
     app.register_blueprint(graphs)
     app.register_blueprint(configuration)
     app.register_blueprint(history_bp)
+    app.register_blueprint(health)
