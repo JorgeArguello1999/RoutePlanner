@@ -1,11 +1,11 @@
-# Producción - despliegue con MySQL 8.0, puerto 8003 interno/externo
-# Uso: docker compose -f docker-compose.prod.yml up -d --build
-# Variables sensibles se pueden inyectar vía .env o entorno del host
+# Production - deployment with MySQL 8.0, port 8003 internal/external
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+# Sensitive variables can be injected via .env or host environment
 name: route-planner-prod
 services:
   web:
     build: .
-    # En prod también puedes usar imagen prebuilt: descomenta `image:` y comenta `build:`
+    # In prod you can also use a prebuilt image: uncomment `image:` and comment `build:`
     # image: jorgearguello/route-planner:1.0
     restart: always
     ports:

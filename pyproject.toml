@@ -1,7 +1,7 @@
 [project]
 name = "route-planner"
 version = "0.1.0"
-description = "Little projecto develop on my programming class"
+description = "Little project developed in my programming class - Route planning with Dijkstra and MySQL"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

@@ -5,8 +5,8 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Install system dependencies
-# default-mysql-client para esperar a MySQL / healthchecks
-# curl para healthchecks
+# default-mysql-client to wait for MySQL / healthchecks
+# curl for healthchecks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     default-mysql-client \
@@ -19,28 +19,28 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uvx /bin/uvx
 # Copy the project configuration files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies (crea .venv en /app/.venv)
+# Install dependencies (creates .venv at /app/.venv)
 RUN uv sync --frozen --no-cache
 
-# Asegura que venv esté en PATH para que entrypoint.sh encuentre flask/gunicorn/python
+# Ensure venv is on PATH so entrypoint.sh can find flask/gunicorn/python
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
 # Copy the application code
 COPY . .
 
-# Asegurar permisos de ejecución para entrypoint
+# Ensure entrypoint is executable
 RUN chmod +x ./entrypoint.sh
 
-# Expose the port the app runs on (requerido: 8003)
+# Expose the port the app runs on (required: 8003)
 EXPOSE 8003
 
-# Variables por defecto - pueden sobreescribirse en docker-compose / .env
+# Default environment variables - can be overridden in docker-compose / .env
 ENV HOST=0.0.0.0
 ENV PORT=8003
 ENV FLASK_APP=app.py
 ENV PYTHONUNBUFFERED=1
-# Valores dev por defecto (en compose se sobreescriben con secrets)
+# Default dev values (overridden with secrets in compose)
 ENV SECRET_KEY=dev-secret-key-change-in-production
 ENV ENCRYPTION_KEY=0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=
 ENV CONFIG_ACCESS_KEY=admin
@@ -48,9 +48,9 @@ ENV ADMIN_USERNAME=admin
 ENV ADMIN_EMAIL=admin@routeplanner.local
 ENV ADMIN_PASSWORD=Admin123!
 
-# Healthcheck interno - verifica app + DB + demo user via /health
+# Internal healthcheck - verifies app + DB + demo user via /health
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Entrypoint robusto: espera DB, migra, crea tablas, seed admin y arranca gunicorn
+# Robust entrypoint: waits for DB, migrates, creates tables, seeds admin and starts gunicorn
 ENTRYPOINT ["./entrypoint.sh"]

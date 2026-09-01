@@ -4,7 +4,7 @@ services:
     build: .
     ports:
       - "8003:8003"
-    # En dev mantenemos volumen para hot-reload, pero excluimos .venv del container
+    # In dev we keep volume for hot-reload, but exclude .venv from container
     volumes:
       - .:/app
       - /app/.venv
@@ -15,7 +15,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8003
       - FLASK_APP=app.py
-      # MySQL: usar pymysql driver (usa mismas vars que el servicio db)
+      # MySQL: use pymysql driver (uses same vars as db service)
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-route_user}:${MYSQL_PASSWORD:-route_password}@db:3306/${MYSQL_DATABASE:-routeplanner}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=}

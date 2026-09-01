@@ -26,7 +26,7 @@ def health_check():
     except Exception as e:
         result["db"] = f"error: {e}"
         result["status"] = "degraded"
-        result["hint"] = "DB connection failed - revisa DATABASE_URL y contenedor db"
+        result["hint"] = "DB connection failed - check DATABASE_URL and db container"
         return jsonify(result), 200
 
     # Demo user check (doesn't require password to be exposed)
@@ -36,27 +36,27 @@ def health_check():
         u = User.query.filter_by(username=admin_user).first()
         if not u:
             result["demo_ready"] = False
-            result["hint"] = f"Demo user '{admin_user}' no existe. Revisa logs entrypoint (seeding) o ejecuta: docker compose exec web python seed.py"
+            result["hint"] = f"Demo user '{admin_user}' does not exist. Check entrypoint logs (seeding) or run: docker compose exec web python seed.py"
         elif not u.is_active:
             result["demo_ready"] = False
-            result["hint"] = f"Demo user '{admin_user}' inactivo. Actívalo en /configuration o DB."
+            result["hint"] = f"Demo user '{admin_user}' is inactive. Enable it in /configuration or DB."
         elif not u.check_password(admin_pass):
             result["demo_ready"] = False
-            result["hint"] = f"Password en DB no coincide con ADMIN_PASSWORD env. Solución: ADMIN_FORCE_RESET=true docker compose up -d (o cambia ADMIN_PASSWORD)"
+            result["hint"] = f"Password in DB does not match ADMIN_PASSWORD env. Fix: ADMIN_FORCE_RESET=true docker compose up -d (or change ADMIN_PASSWORD)"
             result["admin_role"] = u.role.value if hasattr(u.role, 'value') else str(u.role)
         else:
             result["demo_ready"] = True
             result["admin_role"] = u.role.value if hasattr(u.role, 'value') else str(u.role)
             result["admin_email"] = u.email
-            result["hint"] = f"Login en /users/signin con {admin_user} / {admin_pass}"
+            result["hint"] = f"Login at /users/signin with {admin_user} / {admin_pass}"
     except Exception as e:
         result["demo_ready"] = False
-        result["hint"] = f"Error verificando demo: {e}"
+        result["hint"] = f"Error checking demo: {e}"
 
     return jsonify(result), 200
 
 
 @health.route('/demo', methods=['GET'])
 def demo_check():
-    """Dedicated demo status - mismo check pero endpoint explícito para deploy."""
+    """Dedicated demo status - same check but explicit endpoint for deploy."""
     return health_check()

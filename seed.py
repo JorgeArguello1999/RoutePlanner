@@ -1,7 +1,7 @@
 """
 Seed script for RoutePlanner - creates default admin user with all permissions.
 Usable standalone: `uv run python seed.py` or `python seed.py`
-Idempotente: no duplica si ya existe.
+Idempotent: does not duplicate if already exists.
 """
 import os
 import sys

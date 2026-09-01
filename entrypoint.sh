@@ -16,7 +16,7 @@ if [ ! -f "/app/.venv/bin/flask" ] || [ ! -f "/app/.venv/bin/gunicorn" ]; then
   if uv sync --frozen --no-cache; then
     echo "  uv sync completed"
   else
-    echo "  WARNING: uv sync failed, trying with --break-system-packages fallback"
+    echo "  WARNING: uv sync failed, trying fallback"
     uv sync --frozen --no-cache || echo "  uv sync still failed, continuing (may fail later)"
   fi
 fi
@@ -127,7 +127,7 @@ uv run flask db stamp head 2>&1 | head -n 20 || echo "  stamp head skipped (alre
 uv run flask db current 2>&1 | head -n 20 || true
 
 # ---------------------------------------------------------
-# 4. Seed default admin user (idempotent, con todos los permisos)
+# 4. Seed default admin user (idempotent, with all permissions)
 # ---------------------------------------------------------
 echo ">> Seeding default admin user..."
 uv run python << 'PYEOF'
@@ -177,7 +177,6 @@ with app.app_context():
             except Exception as e:
                 db.session.rollback()
                 print(f"  Failed to create admin user: {e}")
-            # Also create a secondary dev user if requested
     # Summary
     total = User.query.count()
     admins = User.query.filter_by(role=UserRole.ADMIN).count()
@@ -188,9 +187,9 @@ PYEOF
 echo ">> Database initialization complete"
 
 # ---------------------------------------------------------
-# 4b. Verify demo user can actually login (AVISO deploy)
+# 4b. Verify demo user can actually login (deploy notification)
 # ---------------------------------------------------------
-echo ">> Verifying demo user (AVISO deploy - ¿demo corriendo?)..."
+echo ">> Verifying demo user (deploy notification - is demo running?)..."
 uv run python << 'PYEOF'
 import os
 from app import app
@@ -205,38 +204,38 @@ with app.app_context():
         u = User.query.filter_by(username=admin_user).first()
         if not u:
             print("  ❌ DEMO USER NOT FOUND")
-            print(f"     Buscado: '{admin_user}' no existe en DB.")
-            print("     Causa: seeding falló o volumen DB corrupto.")
-            print("     Solución: docker compose logs web | grep -i seed  -> revisa error")
-            print("              docker compose down -v && docker compose up --build  (resetea DB limpia)")
-            print(f"              o: docker compose exec web python seed.py")
+            print(f"     Searched: '{admin_user}' does not exist in DB.")
+            print("     Cause: seeding failed or DB volume corrupted.")
+            print("     Fix: docker compose logs web | grep -i seed  -> check error")
+            print("          docker compose down -v && docker compose up --build  (reset clean DB)")
+            print(f"          or: docker compose exec web python seed.py")
         elif not u.is_active:
-            print(f"  ❌ DEMO USER INACTIVO: '{u.username}' (is_active=False)")
-            print("     Solución: activa el usuario en /configuration o DB: is_active=1")
+            print(f"  ❌ DEMO USER INACTIVE: '{u.username}' (is_active=False)")
+            print("     Fix: enable user in /configuration or DB: is_active=1")
         elif not u.check_password(admin_pass):
-            print(f"  ❌ DEMO USER PASSWORD MISMATCH para '{admin_user}'")
-            print(f"     El usuario existe (role={u.role.value}, email={u.email}) pero el password en DB NO coincide con ADMIN_PASSWORD='{admin_pass}'")
-            print("     Causa: ya existía con otro password (no se sobrescribe por seguridad).")
-            print("     Soluciones:")
-            print("       1) Loguéate con el password antiguo si lo recuerdas,")
-            print("       2) ADMIN_FORCE_RESET=true docker compose up -d   -> resetea password al del .env")
+            print(f"  ❌ DEMO USER PASSWORD MISMATCH for '{admin_user}'")
+            print(f"     User exists (role={u.role.value}, email={u.email}) but password in DB does NOT match ADMIN_PASSWORD='{admin_pass}'")
+            print("     Cause: user already existed with different password (not overwritten for security).")
+            print("     Fixes:")
+            print("       1) Login with the old password if you remember it,")
+            print("       2) ADMIN_FORCE_RESET=true docker compose up -d   -> resets password to .env value")
             print("       3) docker compose exec web python -c \"from app import app; from models import db; from models.users import User; import os; u=User.query.filter_by(username=os.getenv('ADMIN_USERNAME','admin')).first(); u.password=os.getenv('ADMIN_PASSWORD','Admin123!'); db.session.commit(); print('reset ok')\"")
         else:
             print(f"  ✅ DEMO USER READY: '{admin_user}' / '{admin_pass}'")
-            print(f"     Rol: {u.role.value} | Email: {u.email} | ID: {u.id}")
+            print(f"     Role: {u.role.value} | Email: {u.email} | ID: {u.id}")
             print(f"     Login: http://localhost:{port}/users/signin")
             print(f"     Health: curl http://localhost:{port}/health/demo | jq")
-        # Resumen para health endpoint
+        # Summary for health endpoint
         total = User.query.count()
         print(f"  [demo-check] total_users={total} demo_ready={bool(u and u.is_active and u.check_password(admin_pass))}")
     except Exception as e:
         print(f"  ❌ DEMO CHECK ERROR: {e}")
         import traceback; traceback.print_exc()
-        print("     Hint: ¿DB conectada? ¿tablas creadas? Revisa: flask db current && db.create_all() logs arriba")
+        print("     Hint: DB connected? Tables created? Check: flask db current && db.create_all() logs above")
 
 PYEOF
 
-# Banner final MUY visible para el deploy
+# Final banner highly visible for deploy
 echo ""
 echo "========================================"
 echo "  RoutePlanner DEPLOY COMPLETE"
@@ -247,7 +246,7 @@ echo "  Login:    http://localhost:${PORT}/users/signin"
 echo "  Demo:     ${ADMIN_USERNAME:-admin} / ${ADMIN_PASSWORD:-Admin123!}"
 echo "========================================"
 echo ""
-echo "  Si el demo NO funciona, revisa:"
+echo "  If demo NOT working, check:"
 echo "    docker compose logs web | grep -A2 -i demo"
 echo "    curl http://localhost:${PORT}/health/demo | python3 -m json.tool"
 echo "    docker compose exec web python seed.py"
