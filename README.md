@@ -2,167 +2,135 @@
 
 ![Home Page](docs/home.png)
 
-**RoutePlanner** — Manage locations and calculate optimal routes with **Dijkstra** + Haversine, interactive **Leaflet** maps and **PDF** reports.
+Manage locations and calculate optimal routes with **Dijkstra + Haversine**, **Leaflet** maps and **PDF** reports.
 
-> **ES** — Gestiona ubicaciones y calcula rutas óptimas con **Dijkstra** + Haversine, mapas **Leaflet** y reportes **PDF**. **Single Docker image: SQLite default + MySQL/PostgreSQL optional via `DATABASE_URL`.**
+> **Single Docker image** — SQLite by default (no external DB). MySQL/PostgreSQL optional via `DATABASE_URL`. Demo auto-created.
 
 ---
 
-## 🌐 Language / Idioma
+> [!IMPORTANT]
+> **Demo account — visible on the website and ready to use**
+> - **URL:** http://localhost:8003 → **Sign In**
+> - **User:** `admin` — **Password:** `Admin123!`
+> - Auto-created on first run. No registration needed. Change via `ADMIN_PASSWORD` env.
+> - You will also see this banner **on the home page and on the login page** (`Sign in as admin →`).
 
-| [🇬🇧 English — Full Guide](README.en.md) | [🇪🇸 Español — Guía Completa](README.es.md) | [🛠️ Development / Desarrollo](DEVELOPMENT.md) |
+---
+
+## 🌐 Language
+
+| [🇬🇧 English](README.en.md) | [🇪🇸 Español](README.es.md) | [🛠️ Dev Guide](DEVELOPMENT.md) |
 |---|---|---|
-| Complete deployment, env vars, external DB | Despliegue completo, variables, BD externa | Architecture, migrations, contributing |
-
-This `README.md` is a **bilingual hub** — brief quick-start below. See links above for full guides.
+| Full guide | Guía completa | Architecture & contributing |
 
 ---
 
-<a id="english-quick"></a>
-## 🇬🇧 English — Quick Deploy (Single Image)
+## 🚀 Deploy — 1 command
 
-### Stack
-Python 3.13 / Flask 3 / SQLAlchemy / Flask-Migrate / **SQLite default** (MySQL/PostgreSQL optional via `DATABASE_URL`, drivers `pymysql` + `psycopg2-binary` included) / NetworkX / Leaflet / fpdf2 / gunicorn / uv / Docker
+**Requires:** Docker + Docker Compose v2
 
-### 1-Minute Deploy — SQLite (no external DB needed)
 ```bash
 git clone <repo> RoutePlanner && cd RoutePlanner
-# Option A: docker run (single image, simplest)
-docker build -t route-planner .
-docker run -d -p 8003:8003 --name route-planner -v routeplanner_data:/app/instance route-planner
-# Option B: docker compose (single service)
 docker compose up --build -d
-docker compose logs -f web  # wait for "Seeding admin..." + "RoutePlanner READY"
-open http://localhost:8003
+# or without compose:
+# docker build -t route-planner . && docker run -d -p 8003:8003 -v routeplanner_data:/app/instance route-planner
 ```
 
-### External Database (optional)
-Drivers are **included** — just set `DATABASE_URL`:
+Open **http://localhost:8003** → you will see:
+
+- Home banner: **“Try the demo — admin / Admin123! → Sign in as admin”**
+- Login page: blue box **“Demo: admin / Admin123! [fill]”** — click *fill* to auto-fill
+
+**Sign in → Dashboard** to create locations, plan routes, export PDF.
+
 ```bash
-# MySQL external
-DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner docker compose up -d
-# PostgreSQL external
-DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/routeplanner docker compose up -d
-# Or via .env: edit DATABASE_URL in .env then docker compose up -d
-# Docker run example with MySQL:
-docker run -d -p 8003:8003 -e DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner route-planner
+docker compose logs -f web   # wait for "DEMO READY: admin / Admin123!"
+docker compose ps            # → healthy on 8003
 ```
-If `DATABASE_URL` is empty (default), `config.py:12` uses `sqlite:///routeplanner.db` (`instance/routeplanner.db` persisted via `sqlite_data` volume).
 
-### Production
+**Stop:**
 ```bash
-cp .env.example .env  # set SECRET_KEY, ENCRYPTION_KEY (Fernet), ADMIN_PASSWORD
-docker compose -f docker-compose.prod.yml up --build -d  # same single image, restart: always
+docker compose down        # keep data
+docker compose down -v     # wipe DB (fresh)
 ```
-
-### Demo Admin (auto-created, idempotent)
-- **URL:** http://localhost:8003 → `Sign In`
-- **User:** `admin` / **Pass:** `Admin123!` / **Email:** `admin@routeplanner.local` / **Role:** `ADMIN`
-- **Change it:** `ADMIN_USERNAME=myadmin ADMIN_PASSWORD='S3cure!' docker compose up --build` or via UI `/users/update` or `ADMIN_FORCE_RESET=true docker compose up -d`
-
-### Verify
-```bash
-docker compose ps
-curl -f http://localhost:8003/health && echo "APP OK"
-curl -s http://localhost:8003/health/demo | python3 -m json.tool  # demo_ready:true/false + hint
-docker compose logs web | grep -A2 "DEMO READY"
-```
-
-### Key Design — Single Image
-- `Dockerfile:1-35` — `python:3.13-slim` + `curl` + `uv sync --frozen`, `EXPOSE 8003`, `HEALTHCHECK curl /health`, `ENTRYPOINT entrypoint.sh` (no `default-mysql-client` needed).
-- `entrypoint.sh` — `mkdir -p instance`, wait only if `DATABASE_URL` is MySQL/Postgres (otherwise SQLite instant), `flask db upgrade` → `db.create_all()` → `stamp head` → seed admin → `gunicorn`.
-- `docker-compose.yml` — single service `web`, volume `sqlite_data:/app/instance`, `env_file: .env`.
-
-![Dashboard and Map](docs/dashboard.png)
-![Graph Visualization](docs/routes.png)
-| User Management | Trip History |
-| :---: | :---: |
-| ![User Management](docs/manageusers.png) | ![Trip History](docs/TripHistory.png) |
-![User Configuration](docs/userconfig.png)
 
 ---
 
-<a id="espanol-quick"></a>
-## 🇪🇸 Español — Despliegue Rápido (Imagen Única)
+## 🔑 Demo credentials (also on site)
 
-### Stack
-Python 3.13 / Flask 3 / SQLAlchemy / Flask-Migrate / **SQLite por defecto** (MySQL/PostgreSQL opcional vía `DATABASE_URL`, drivers incluidos) / NetworkX / Leaflet / fpdf2 / gunicorn / uv / Docker
+| Field | Value |
+|---|---|
+| URL | http://localhost:8003/users/signin |
+| User | `admin` |
+| Password | `Admin123!` |
+| Email | `admin@routeplanner.local` |
+| Role | `ADMIN` (manage users, locations, history) |
 
-### Despliegue en 1 minuto — SQLite (sin BD externa)
+Normal users: `Sign Up` at `/users/signup` (role `user`, admin promotes in `/configuration`).
+
+Change demo:
 ```bash
-git clone <repo> RoutePlanner && cd RoutePlanner
-# Opción A: docker run (imagen única, más simple)
-docker build -t route-planner .
-docker run -d -p 8003:8003 --name route-planner -v routeplanner_data:/app/instance route-planner
-# Opción B: docker compose (un solo servicio)
-docker compose up --build -d
-docker compose logs -f web  # espera "Seeding admin..." + "RoutePlanner READY"
-open http://localhost:8003
+ADMIN_USERNAME=myadmin ADMIN_PASSWORD='S3cure!' docker compose up --build -d
+# or inside app: /users/update, /users/change-password
+# force reset: ADMIN_FORCE_RESET=true docker compose up -d
 ```
-
-### Base de Datos Externa (opcional)
-Drivers **incluidos** — solo define `DATABASE_URL`:
-```bash
-# MySQL externo
-DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner docker compose up -d
-# PostgreSQL externo
-DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/routeplanner docker compose up -d
-# vía .env: edita DATABASE_URL en .env luego docker compose up -d
-```
-Si `DATABASE_URL` vacío (default), `config.py:12` usa `sqlite:///routeplanner.db` (`instance/routeplanner.db` persistido con volumen `sqlite_data`).
-
-### Producción
-```bash
-cp .env.example .env  # define SECRET_KEY, ENCRYPTION_KEY (Fernet), ADMIN_PASSWORD
-docker compose -f docker-compose.prod.yml up --build -d  # misma imagen única, restart: always
-```
-
-### Usuario Demo Admin
-- **URL:** http://localhost:8003 → `Sign In`
-- **Usuario:** `admin` / **Contraseña:** `Admin123!` / **Email:** `admin@routeplanner.local` / **Rol:** `ADMIN`
-- **Cambiarlo:** `ADMIN_USERNAME=miadmin ADMIN_PASSWORD='S3guro!' docker compose up --build` o `ADMIN_FORCE_RESET=true docker compose up -d`
-
-### Verificar
-```bash
-docker compose ps
-curl -f http://localhost:8003/health && echo "APP OK"
-curl -s http://localhost:8003/health/demo | python3 -m json.tool
-docker compose logs web | grep -A2 "DEMO READY"
-```
-
-### Diseño — Imagen Única
-- `Dockerfile:1-35` — `python:3.13-slim` + `uv`, `EXPOSE 8003`, `HEALTHCHECK`, sin `default-mysql-client`.
-- `entrypoint.sh` — espera condicional solo si `DATABASE_URL` es MySQL/Postgres, si no SQLite instantáneo.
-- `docker-compose.yml` — un solo servicio `web`.
-
-Ver **[README.es.md](README.es.md)** para guía completa.
 
 ---
 
-## 📚 More Docs / Más Documentación
+## 🗃️ Need MySQL/PostgreSQL?
 
-- **User guides:** [README.en.md](README.en.md) (EN) | [README.es.md](README.es.md) (ES)
-- **Developer guide:** [DEVELOPMENT.md](DEVELOPMENT.md)
-- **Technical report:** [docs/technical_report.md](docs/technical_report.md)
-- **Env template:** [.env.example](.env.example)
-- **Compose files:** [docker-compose.yml](docker-compose.yml) (dev, single service) | [docker-compose.prod.yml](docker-compose.prod.yml) (prod)
+Drivers `pymysql` + `psycopg2-binary` are **already in the image**. Just set `DATABASE_URL`:
 
-### Project Structure / Estructura
+```bash
+DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner docker compose up -d
+DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/routeplanner docker compose up -d
+```
+
+Leave `DATABASE_URL` empty (default) to use SQLite (`instance/routeplanner.db` via `sqlite_data` volume).
+
+<details>
+<summary>More details</summary>
+
+- `config.py:16` fallback → `sqlite:///routeplanner.db` if `DATABASE_URL` empty
+- `entrypoint.sh` waits only if `DATABASE_URL` is MySQL/Postgres, otherwise instant
+- For `docker run`: `-e DATABASE_URL=mysql+pymysql://...`
+
+</details>
+
+---
+
+## ✅ Verify
+
+```bash
+curl http://localhost:8003/health | python3 -m json.tool   # demo_ready:true
+curl http://localhost:8003/health/demo | python3 -m json.tool
+docker compose logs web | grep "DEMO READY"
+```
+
+---
+
+## 🧩 Stack & Structure
+
+**Python 3.13 / Flask 3 / SQLAlchemy / NetworkX (Dijkstra) / Leaflet / fpdf2 / gunicorn / uv / Docker**
+
 ```
 RoutePlanner/
-├── app.py / config.py / entrypoint.sh / seed.py
-├── Dockerfile (single image, SQLite default, drivers for MySQL/PG)
-├── docker-compose.yml (single service + sqlite_data volume)
-├── docker-compose.prod.yml (prod, same image, restart: always)
-├── .env.example
-├── models/ (User, Location, API_Storage, RouteHistory)
-├── controllers/ / routers/ (Blueprints) / utils/ (auth, encryption)
-├── templates/ / static/ (Jinja2, AdminLTE, Leaflet)
-├── migrations/ (Alembic)
-└── test/ (verify_*.py)
+├── Dockerfile              # single image, SQLite default
+├── docker-compose.yml      # single service → sqlite_data:/app/instance
+├── docker-compose.prod.yml # same image, restart: always
+├── entrypoint.sh           # ~80 lines: migrate → seed → gunicorn
+├── app.py / config.py / seed.py
+├── models/  controllers/  routers/  utils/
+├── templates/  static/     # home banner + signin demo box
+└── migrations/
 ```
+
+![Dashboard](docs/dashboard.png)
+![Graph](docs/routes.png)
+| Users | History |
+|---|---|
+| ![Users](docs/manageusers.png) | ![History](docs/TripHistory.png) |
 
 ---
 
-**Maintained by Jorge Arguello — RoutePlanner 2026**  
-Issues? https://github.com/anomalyco/opencode (using Muse Spark)
+**Maintained by Jorge Arguello — 2026** • See `README.en.md` / `README.es.md` for full guides • `DEVELOPMENT.md` for dev setup
