@@ -2,76 +2,135 @@
 
 ![Home Page](docs/home.png)
 
-**RoutePlanner** is a comprehensive web application designed for managing geographical locations and calculating optimal routes. It leverages advanced graph algorithms like **Dijkstra** to find the shortest paths and provides professional reporting features with PDF export capabilities.
+Manage locations and calculate optimal routes with **Dijkstra + Haversine**, **Leaflet** maps and **PDF** reports.
 
-## 🚀 Features
+> **Single Docker image** — SQLite by default (no external DB). MySQL/PostgreSQL optional via `DATABASE_URL`. Demo auto-created.
 
-### 🗺️ Interactive Maps & Routing
+---
 
-- **Leaflet Integration**: Visualize your world with interactive maps.
-- **Route Planning**: Select Start, End, and Intermediate points to calculate the best route.
-- **Dijkstra's Algorithm**: backend logic ensures the shortest path using Haversine distance.
+> [!IMPORTANT]
+> **Demo account — visible on the website and ready to use**
+> - **URL:** http://localhost:8003 → **Sign In**
+> - **User:** `admin` — **Password:** `Admin123!`
+> - Auto-created on first run. No registration needed. Change via `ADMIN_PASSWORD` env.
+> - You will also see this banner **on the home page and on the login page** (`Sign in as admin →`).
 
-![Dashboard and Map](docs/dashboard.png)
+---
 
-### 📊 Advanced Reporting
+## 🌐 Language
 
-- **PDF Export**: Generate detailed route reports including:
-  - **Visual Map Capture**: Client-side capture of the map layout.
-  - **Metrics**: Total distance and estimated travel time.
-  - **Coordinates**: Precise locations for all waypoints.
+| [🇬🇧 English](README.en.md) | [🇪🇸 Español](README.es.md) | [🛠️ Dev Guide](DEVELOPMENT.md) |
+|---|---|---|
+| Full guide | Guía completa | Architecture & contributing |
 
-![Graph Visualization](docs/routes.png)
+---
 
-### 🔒 User & Location Management
+## 🚀 Deploy — 1 command
 
-- **Secure Authentication**: Robust login and role management.
-- **Location Database**: Save, edit, and manage your favorite locations.
-- **Trip History**: Keep track of all your planned journeys.
+**Requires:** Docker + Docker Compose v2
 
-| User Management | Trip History |
-| :---: | :---: |
-| ![User Management](docs/manageusers.png) | ![Trip History](docs/TripHistory.png) |
+```bash
+git clone <repo> RoutePlanner && cd RoutePlanner
+docker compose up --build -d
+# or without compose:
+# docker build -t route-planner . && docker run -d -p 8003:8003 -v routeplanner_data:/app/instance route-planner
+```
 
-## 🛠️ Technology Stack
+Open **http://localhost:8003** → you will see:
 
-- **Backend**: Python, Flask, SQLAlchemy.
-- **Database**: PostgreSQL (Dockerized) / MySQL Compatible.
-- **Frontend**: Bootstrap 5 (AdminLTE), Leaflet.js, Jinja2.
-- **Graph Engine**: NetworkX, Matplotlib.
-- **Reporting**: FPDF2, html2canvas.
+- Home banner: **“Try the demo — admin / Admin123! → Sign in as admin”**
+- Login page: blue box **“Demo: admin / Admin123! [fill]”** — click *fill* to auto-fill
 
-![User Configuration](docs/userconfig.png)
+**Sign in → Dashboard** to create locations, plan routes, export PDF.
 
-## 🐳 Getting Started (Docker)
+```bash
+docker compose logs -f web   # wait for "DEMO READY: admin / Admin123!"
+docker compose ps            # → healthy on 8003
+```
 
-The easiest way to run the application is via Docker Compose.
+**Stop:**
+```bash
+docker compose down        # keep data
+docker compose down -v     # wipe DB (fresh)
+```
 
-1. **Clone and Build**:
+---
 
-   ```bash
-   docker-compose up --build
-   ```
+## 🔑 Demo credentials (also on site)
 
-2. **Access the App**:
-   - Web: [http://localhost:5000](http://localhost:5000)
-   - Database: Port `5432`
+| Field | Value |
+|---|---|
+| URL | http://localhost:8003/users/signin |
+| User | `admin` |
+| Password | `Admin123!` |
+| Email | `admin@routeplanner.local` |
+| Role | `ADMIN` (manage users, locations, history) |
 
-3. **Default Credentials**:
-   - *Check the `.env` file or `docker-compose.yml` for initial setup.*
+Normal users: `Sign Up` at `/users/signup` (role `user`, admin promotes in `/configuration`).
 
-## 📦 Manual Installation
+Change demo:
+```bash
+ADMIN_USERNAME=myadmin ADMIN_PASSWORD='S3cure!' docker compose up --build -d
+# or inside app: /users/update, /users/change-password
+# force reset: ADMIN_FORCE_RESET=true docker compose up -d
+```
 
-1. **Install Dependencies**:
+---
 
-   ```bash
-   uv pip install -r requirements.txt
-   ```
+## 🗃️ Need MySQL/PostgreSQL?
 
-2. **Configure Environment**:
-   - Rename `.env.example` to `.env` and set your `DATABASE_URL`.
-3. **Run**:
+Drivers `pymysql` + `psycopg2-binary` are **already in the image**. Just set `DATABASE_URL`:
 
-   ```bash
-   flask run
-   ```
+```bash
+DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner docker compose up -d
+DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/routeplanner docker compose up -d
+```
+
+Leave `DATABASE_URL` empty (default) to use SQLite (`instance/routeplanner.db` via `sqlite_data` volume).
+
+<details>
+<summary>More details</summary>
+
+- `config.py:16` fallback → `sqlite:///routeplanner.db` if `DATABASE_URL` empty
+- `entrypoint.sh` waits only if `DATABASE_URL` is MySQL/Postgres, otherwise instant
+- For `docker run`: `-e DATABASE_URL=mysql+pymysql://...`
+
+</details>
+
+---
+
+## ✅ Verify
+
+```bash
+curl http://localhost:8003/health | python3 -m json.tool   # demo_ready:true
+curl http://localhost:8003/health/demo | python3 -m json.tool
+docker compose logs web | grep "DEMO READY"
+```
+
+---
+
+## 🧩 Stack & Structure
+
+**Python 3.13 / Flask 3 / SQLAlchemy / NetworkX (Dijkstra) / Leaflet / fpdf2 / gunicorn / uv / Docker**
+
+```
+RoutePlanner/
+├── Dockerfile              # single image, SQLite default
+├── docker-compose.yml      # single service → sqlite_data:/app/instance
+├── docker-compose.prod.yml # same image, restart: always
+├── entrypoint.sh           # ~80 lines: migrate → seed → gunicorn
+├── app.py / config.py / seed.py
+├── models/  controllers/  routers/  utils/
+├── templates/  static/     # home banner + signin demo box
+└── migrations/
+```
+
+![Dashboard](docs/dashboard.png)
+![Graph](docs/routes.png)
+| Users | History |
+|---|---|
+| ![Users](docs/manageusers.png) | ![History](docs/TripHistory.png) |
+
+---
+
+**Maintained by Jorge Arguello — 2026** • See `README.en.md` / `README.es.md` for full guides • `DEVELOPMENT.md` for dev setup

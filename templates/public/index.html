@@ -131,6 +131,19 @@
     </div>
 </section>
 
+<!-- Demo Credentials Banner — visible on first load -->
+<section class="demo-credentials">
+    <div class="demo-credentials-card">
+        <div class="demo-credentials-icon">🔑</div>
+        <div class="demo-credentials-info">
+            <h3>Try the demo — no registration needed</h3>
+            <p>Sign in as <strong>{{ demo_user|default('admin') }}</strong> &nbsp;/&nbsp; <code>{{ demo_pass|default('Admin123!') }}</code> <span class="demo-copy" onclick="navigator.clipboard.writeText('{{ demo_pass|default('Admin123!') }}'); this.textContent='copied!'; setTimeout(()=>this.textContent='copy',1500)" title="Copy password">copy</span></p>
+        </div>
+        <a href="{{ url_for('users.signin') }}" class="demo-credentials-btn">Sign in as {{ demo_user|default('admin') }} →</a>
+    </div>
+    <p class="demo-credentials-hint">Demo account auto-created on first run • Change via <code>ADMIN_PASSWORD</code> env • <a href="{{ url_for('users.signin') }}">/users/signin</a></p>
+</section>
+
 <!-- CTA Section -->
 <section class="cta">
     <h2>Ready to Start Your Journey?</h2>

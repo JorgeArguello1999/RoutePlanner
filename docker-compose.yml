@@ -2,32 +2,27 @@ name: route-planner
 services:
   web:
     build: .
+    # Alternative: use prebuilt image (uncomment image and comment build)
+    # image: jorgearguello/route-planner:1.0
     ports:
-      - "5000:5000"
+      - "8003:8003"
     volumes:
-      - .:/app
-      - /app/.venv
+      # Persist SQLite DB (instance/routeplanner.db)
+      - sqlite_data:/app/instance
+    env_file:
+      - .env
     environment:
-      - FLASK_ENV=development
-      - DEBUG=True
+      # These override .env defaults if needed; keep DATABASE_URL empty for SQLite
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://user:password@db:5432/routeplanner
-      - SECRET_KEY=dev_secret_key
-      - ENCRYPTION_KEY=dev_encryption_key
-      - CONFIG_ACCESS_KEY=admin
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=routeplanner
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - PORT=8003
+      - FLASK_APP=app.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 volumes:
-  postgres_data:
+  sqlite_data:

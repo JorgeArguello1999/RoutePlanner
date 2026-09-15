@@ -13,6 +13,14 @@
                 </a>
             </div>
             <div class="card-body login-card-body">
+                <!-- Demo credentials — visible on login -->
+                <div class="alert alert-info d-flex align-items-center py-2 px-3 mb-3" style="font-size:0.9rem; border-left:4px solid #0d6efd; background:#e7f3ff;">
+                    <div style="flex:1;">
+                        <strong>Demo:</strong> <code>{{ demo_user|default('admin') }}</code> / <code>{{ demo_pass|default('Admin123!') }}</code>
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2 py-0 px-2" style="font-size:0.75rem;" onclick="document.getElementById('loginUsername').value='{{ demo_user|default('admin') }}'; document.getElementById('loginPassword').value='{{ demo_pass|default('Admin123!') }}';">fill</button>
+                        <br><small class="text-muted">Auto-created • No registration needed • <a href="/" class="alert-link">home</a></small>
+                    </div>
+                </div>
                 <p class="login-box-msg">Sign in to start your session</p>
 
                 {% if message %}

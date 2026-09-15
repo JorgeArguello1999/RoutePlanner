@@ -23,8 +23,11 @@ class UserSignupResponse(TypedDict):
 # GET / Signin Page / Handler
 def signin_page(request_form):
     """ Render the signin page """
+    import os
+    demo_user = os.getenv("ADMIN_USERNAME", "admin")
+    demo_pass = os.getenv("ADMIN_PASSWORD", "Admin123!")
     if request_form.method == 'GET':
-        return render_template(f"{TEMPLATES_DIR}signin.html")
+        return render_template(f"{TEMPLATES_DIR}signin.html", demo_user=demo_user, demo_pass=demo_pass)
 
     elif request_form.method == 'POST':
         username = request_form.form.get('username')
@@ -39,7 +42,7 @@ def signin_page(request_form):
             session['role'] = user.role.value
             return redirect('/dashboard')
 
-        return render_template(f"{TEMPLATES_DIR}signin.html", message=message)
+        return render_template(f"{TEMPLATES_DIR}signin.html", message=message, demo_user=demo_user, demo_pass=demo_pass)
 
 # GET / Signup Page / Handler
 def signup_page(request_form):
