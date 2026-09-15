@@ -1,57 +1,31 @@
-# Production - deployment with MySQL 8.0, port 8003 internal/external
+# Production - single image (SQLite by default)
 # Usage: docker compose -f docker-compose.prod.yml up -d --build
-# Sensitive variables can be injected via .env or host environment
+# For external MySQL/PostgreSQL set DATABASE_URL in .env (drivers included)
 name: route-planner-prod
 services:
   web:
     build: .
-    # In prod you can also use a prebuilt image: uncomment `image:` and comment `build:`
+    # For prebuilt image use:
     # image: jorgearguello/route-planner:1.0
-    restart: always
     ports:
       - "8003:8003"
+    volumes:
+      - sqlite_data:/app/instance
+    env_file:
+      - .env
     environment:
-      - FLASK_ENV=production
-      - DEBUG=False
       - HOST=0.0.0.0
       - PORT=8003
+      - FLASK_ENV=production
+      - DEBUG=False
       - FLASK_APP=app.py
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-route_user}:${MYSQL_PASSWORD:-route_password}@db:3306/${MYSQL_DATABASE:-routeplanner}
-      - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=}
-      - CONFIG_ACCESS_KEY=${CONFIG_ACCESS_KEY:-admin}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@routeplanner.local}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin123!}
-    depends_on:
-      db:
-        condition: service_healthy
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 40s
-
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-routeplanner}
-      - MYSQL_USER=${MYSQL_USER:-route_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-route_password}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER:-route_user}", "-p${MYSQL_PASSWORD:-route_password}"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 15s
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      start_period: 20s
 
 volumes:
-  mysql_data:
+  sqlite_data:

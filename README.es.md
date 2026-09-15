@@ -4,14 +4,15 @@
 
 **RoutePlanner** es una aplicación web integral para gestionar ubicaciones geográficas y calcular rutas óptimas. Usa **Dijkstra** (`NetworkX`) con distancia Haversine, mapas interactivos (`Leaflet.js`) y reportes PDF profesionales (`fpdf2` + `html2canvas`).
 
-> **Despliegue 2026:** Docker + `MySQL 8.0`, migraciones y seeding automáticos, `gunicorn` en **`8003`** interno y externo.
+> **Despliegue 2026 — Imagen Única Docker:** `SQLite` por defecto (sin dependencias externas, persistido con volumen). **MySQL/PostgreSQL** opcional vía `DATABASE_URL` (drivers `pymysql` + `psycopg2-binary` incluidos). `gunicorn` en **`8003`**.
 
 ---
 
 ## Contenido
 - [Características](#características)
 - [Stack Tecnológico](#stack-tecnológico)
-- [Inicio Rápido (Docker)](#inicio-rápido-docker)
+- [Inicio Rápido (Imagen Única)](#inicio-rápido-imagen-única)
+- [Base de Datos Externa (MySQL/PostgreSQL)](#base-de-datos-externa-mysqlpostgresql)
 - [Variables de Entorno](#variables-de-entorno)
 - [Usuario Demo / Admin por Defecto](#usuario-demo--admin-por-defecto)
 - [Cómo Funciona el Despliegue (entrypoint)](#cómo-funciona-el-despliegue-entrypoint)
@@ -49,16 +50,16 @@
 
 ## Stack Tecnológico
 - **Backend:** Python 3.13, Flask 3, Flask-SQLAlchemy, Flask-Migrate (Alembic)
-- **BD:** MySQL 8.0 (`pymysql`) en Docker; fallback SQLite (`sqlite:///routeplanner.db`) para dev local sin Docker. Postgres sigue soportado (`psycopg2-binary`) si cambias `DATABASE_URL`.
+- **BD:** **SQLite por defecto** (`sqlite:///routeplanner.db` → `instance/routeplanner.db`, volumen `sqlite_data`). **MySQL/PostgreSQL opcional** vía `DATABASE_URL` — drivers `pymysql` + `psycopg2-binary` **incluidos en la imagen**, sin rebuild. Solo define `DATABASE_URL` como `mysql+pymysql://...` o `postgresql+psycopg2://...`.
 - **Frontend:** Bootstrap 5 / AdminLTE, Leaflet.js, Jinja2
 - **Grafo:** NetworkX, matplotlib
 - **PDF:** fpdf2, html2canvas
-- **Servidor:** gunicorn 26 (prod) / Flask dev (local)
+- **Servidor:** gunicorn (prod) / Flask dev (local)
 - **Tooling:** `uv`, Docker, docker-compose
 
 ---
 
-## Inicio Rápido (Docker)
+## Inicio Rápido (Imagen Única)
 
 ### Requisitos
 - Docker >= 20.10 y Docker Compose v2 (`docker compose version`)
@@ -71,52 +72,83 @@ git clone <url-del-repo> RoutePlanner
 cd RoutePlanner
 ```
 
-### 2. Configurar env
+### 2. Configurar env (opcional para SQLite)
 ```bash
 cp .env.example .env
-# edita .env para cambiar secretos (recomendado en prod)
-# mínimo: SECRET_KEY, ENCRYPTION_KEY, ADMIN_PASSWORD
+# Para SQLite deja DATABASE_URL vacío (default).
+# Para BD externa, define DATABASE_URL en .env (ver siguiente sección).
+# Mínimo en prod: SECRET_KEY, ENCRYPTION_KEY.
 ```
 
-### 3. Ejecutar (desarrollo)
+### 3. Ejecutar — SQLite (sin BD externa)
 ```bash
-docker compose up --build
-# o en segundo plano:
+# Opción A: docker run — más simple, solo imagen
+docker build -t route-planner .
+docker run -d -p 8003:8003 --name route-planner -v routeplanner_data:/app/instance route-planner
+
+# Opción B: docker compose — un solo servicio + volumen
 docker compose up --build -d
-docker compose logs -f web
-docker compose logs -f db
+docker compose logs -f web  # espera "RoutePlanner READY" + "DEMO READY"
 ```
 - **App:** http://localhost:8003
-- **MySQL:** localhost:3306 (`route_user` / `route_password` → BD `routeplanner`)
+- **Archivo BD:** volumen `sqlite_data` → `/app/instance/routeplanner.db` (persistido)
 
 ### 4. Parar / Resetear
 ```bash
-docker compose down        # mantiene datos (volumen mysql_data)
+docker compose down        # mantiene datos (volumen sqlite_data)
 docker compose down -v     # borra también la BD (inicio limpio)
+# para docker run:
+docker rm -f route-planner
+docker volume rm routeplanner_data
 ```
+
+---
+
+## Base de Datos Externa (MySQL/PostgreSQL)
+
+Drivers ya **incluidos en la imagen** (`pyproject.toml:15-16` `pymysql`, `psycopg2-binary`). El contenedor detecta `DATABASE_URL` y espera la BD antes de migrar.
+
+```bash
+# MySQL externo (RDS, mysql local, o contenedor aparte)
+DATABASE_URL=mysql+pymysql://route_user:route_password@host:3306/routeplanner docker compose up -d
+# PostgreSQL externo
+DATABASE_URL=postgresql+psycopg2://route_user:route_password@host:5432/routeplanner docker compose up -d
+
+# Vía .env (persistente)
+# edita .env: DATABASE_URL=mysql+pymysql://...
+docker compose up -d --build
+
+# Directo con docker run y BD externa
+docker run -d -p 8003:8003 \
+  -e DATABASE_URL=mysql+pymysql://user:pass@host:3306/routeplanner \
+  -e SECRET_KEY=tu-secreto \
+  route-planner
+
+# Verificar BD externa en uso:
+curl http://localhost:8003/health | python3 -m json.tool  # db: ok
+docker logs route-planner | grep "Waiting for MySQL"
+```
+
+> **Fallback:** Si `DATABASE_URL` vacío/no definido, `config.py:15` usa `sqlite:///routeplanner.db` automáticamente.
 
 ---
 
 ## Variables de Entorno
 
-| Variable | Default (Dockerfile / compose) | Descripción |
+| Variable | Default (Dockerfile / .env.example) | Descripción |
 |---|---|---|
 | `HOST` | `0.0.0.0` | bind Flask/gunicorn |
-| `PORT` | `8003` | **Expuesto** `8003:8003` (cambia ambos lados si necesitas otro puerto) |
-| `DATABASE_URL` | `mysql+pymysql://route_user:route_password@db:3306/routeplanner` | URI SQLAlchemy. Fallback `sqlite:///routeplanner.db` si vacío (arregla `RuntimeError: Either 'SQLALCHEMY_DATABASE_URI'...`) |
+| `PORT` | `8003` | **Expuesto** `8003:8003` |
+| `DATABASE_URL` | *(vacío)* → `sqlite:///routeplanner.db` | URI SQLAlchemy. **SQLite default**. Usa `mysql+pymysql://...` o `postgresql+psycopg2://...` para BD externa (drivers incluidos) |
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | Sesión Flask. **Cambiar en prod** |
-| `ENCRYPTION_KEY` | `0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=` | Fernet 44 chars. Debe ser Fernet válido (antes `dev_encryption_key` inválido) |
+| `ENCRYPTION_KEY` | `0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=` | Fernet 44 chars. Debe ser Fernet válido |
 | `CONFIG_ACCESS_KEY` | `admin` | Clave para `/configuration` si no eres admin |
 | `ADMIN_USERNAME` | `admin` | Login demo admin |
 | `ADMIN_EMAIL` | `admin@routeplanner.local` | Email demo |
 | `ADMIN_PASSWORD` | `Admin123!` | **Cambiar tras primer login** o por env |
 | `ADMIN_FORCE_RESET` | `false` | Si `true`, resetea password admin en cada arranque |
-| `MYSQL_ROOT_PASSWORD` | `rootpassword` | root MySQL |
-| `MYSQL_DATABASE` | `routeplanner` |  |
-| `MYSQL_USER` | `route_user` | Debe coincidir con `DATABASE_URL` |
-| `MYSQL_PASSWORD` | `route_password` | Debe coincidir con `DATABASE_URL` |
 
-> `config.py` ahora tiene defaults seguros, `uv run app.py` sin `.env` ya no falla.
+> `config.py` ahora tiene defaults seguros.
 
 ---
 
@@ -131,104 +163,89 @@ El contenedor **crea automáticamente** un admin en cada arranque (`entrypoint.s
   ```bash
   # opción A: por env antes de arrancar
   ADMIN_USERNAME=miadmin ADMIN_EMAIL=yo@ejemplo.com ADMIN_PASSWORD='S3guro!' docker compose up --build
-  # opción B: por UI tras login -> /users/update & /users/change-password
-  # opción C: por /configuration (panel admin) -> Update Password
+  # opción B: docker run
+  docker run -d -p 8003:8003 -e ADMIN_USERNAME=miadmin -e ADMIN_PASSWORD='S3guro!' route-planner
+  # opción C: por UI tras login -> /users/update & /users/change-password
   # opción D: forzar reset en próximo boot
   ADMIN_FORCE_RESET=true docker compose up -d
   ```
-- **Crear usuarios normales:** página `Sign Up` (`/users/signup`) → rol `user` por defecto. Un admin los puede promover en `/configuration`.
+- **Crear usuarios normales:** página `Sign Up` (`/users/signup`) → rol `user` por defecto.
 
-**¿Cómo sé si el demo está corriendo? (el deploy ahora avisa)**
-- **Durante el deploy:** `entrypoint.sh` imprime verificación *antes* de arrancar gunicorn:
+**¿Cómo sé si el demo está corriendo?**
+- **Durante el deploy:** `entrypoint.sh` imprime banner antes de gunicorn:
   ```
-  >> Verifying demo user (AVISO deploy - ¿demo corriendo?)...
-    ✅ DEMO USER READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
+  >> Seeding admin...
+    created admin: admin
+    ✅ DEMO READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
   ========================================
-    RoutePlanner DEPLOY COMPLETE
-    App:      http://localhost:8003
-    Health:   http://localhost:8003/health
-    Demo chk: curl http://localhost:8003/health/demo
-    Login:    http://localhost:8003/users/signin
-    Demo:     admin / Admin123!
+    RoutePlanner READY
+    App:   http://localhost:8003
   ========================================
   ```
-  Si ves `❌ MISMATCH` o `❌ NOT FOUND`, sigue el hint (ej. `ADMIN_FORCE_RESET=true docker compose up -d`).
-
-- **Después del deploy (runtime):**
+- **Después del deploy:**
   ```bash
-  docker compose logs web | grep -A5 "DEMO USER"  # aviso del deploy
+  docker compose logs web | grep -A2 "DEMO READY"
   curl -s http://localhost:8003/health/demo | python3 -m json.tool
-  # {"demo_ready": true/false, "db": "ok", "hint": "Login en /users/signin..."}
   curl -s http://localhost:8003/health | python3 -m json.tool
-  docker compose exec web python seed.py  # re-seed manual si falta demo
+  docker compose exec web python seed.py  # re-seed manual
   ```
 
 **Sin Docker** (fallback SQLite) también tienes admin:
 ```bash
 uv sync
-# asegúrate que DATABASE_URL esté vacío (o unset) para usar SQLite: deja .env DATABASE_URL en blanco
-uv run python seed.py          # debe decir [seed] Created / already exists
-DATABASE_URL= uv run python -c "from app import app; from models.users import User; with app.app_context(): u=User.query.filter_by(username='admin').first(); print(u.check_password('Admin123!'))" # -> True
+# asegúrate que DATABASE_URL esté vacío para usar SQLite
+uv run python seed.py
 uv run python app.py           # http://localhost:8003
-# check demo: curl http://localhost:8003/health/demo | grep demo_ready
 ```
 
 ---
 
 ## Cómo Funciona el Despliegue (entrypoint)
 
-`entrypoint.sh` (definido como `ENTRYPOINT` en `Dockerfile`) corrige bugs previos:
+`entrypoint.sh` (definido como `ENTRYPOINT` en `Dockerfile`) minimalista (~80 líneas):
 
-1. **Espera BD:** parsea `DATABASE_URL`, bucle `pymysql` 60×2s (o `psycopg2` para Postgres, o salta para SQLite).
-2. **Migraciones:** `flask db upgrade` (Alembic). Si faltan migraciones (ej. `locations`/`route_history` aún no en `migrations/versions/`), avisa pero continúa.
-3. **Asegura tablas:** `python -c "db.create_all()"` tras importar todos los modelos — garantiza tablas aunque migraciones incompletas (bug anterior).
-4. **Stamp:** `flask db stamp head` para alinear `alembic_version`.
-5. **Seed:** creación admin idempotente (busca por `username` luego `email`, promueve si hace falta).
-6. **Arranque:** `gunicorn --bind 0.0.0.0:8003 --workers 2 --threads 4 app:app` (fallback `uv run python app.py`).
+1. **Espera BD (condicional):** Si `DATABASE_URL` contiene `mysql` → bucle `pymysql` 30×2s; si `postgres` → `psycopg2`; si no **salta** (SQLite instantáneo).
+2. **Migraciones:** `flask db upgrade` (Alembic). Avisa pero continúa si faltan.
+3. **Asegura tablas:** `python -c "db.create_all()"` tras importar todos los modelos.
+4. **Stamp:** `flask db stamp head`.
+5. **Seed:** creación admin idempotente (`ADMIN_FORCE_RESET` opcional).
+6. **Arranque:** `gunicorn --bind 0.0.0.0:8003 --workers 2 --threads 4 app:app`.
 
-`Dockerfile` ahora:
-- `EXPOSE 8003`, `ENV PORT=8003 HOST=0.0.0.0`, `HEALTHCHECK curl -f http://localhost:${PORT}/`
-- `uv sync --frozen --no-cache --system` + `chmod +x entrypoint.sh`
+`Dockerfile`:
+- `python:3.13-slim` + `curl` + `uv sync --frozen`, `mkdir -p /app/instance`, `EXPOSE 8003`, `HEALTHCHECK curl`.
 
-`docker-compose.yml` (dev) y `docker-compose.prod.yml` (prod):
-- `image: mysql:8.0` con `healthcheck: mysqladmin ping`, `volumes: mysql_data:/var/lib/mysql`, `ports: 3306:3306`
-- `web: 8003:8003`, `depends_on: db: condition: service_healthy`
+`docker-compose.yml` (un solo servicio):
+- `web: build: ., ports: 8003:8003, volumes: sqlite_data:/app/instance, env_file: .env`
 
 ---
 
-## Verificación (el deploy te avisa)
+## Verificación
 
 ```bash
 docker compose ps
-docker compose logs web  # debe terminar en "DEMO USER READY" + "DEPLOY COMPLETE" + "Using gunicorn"
+docker compose logs web  # debe terminar en "DEMO READY" + "RoutePlanner READY" + "Starting gunicorn"
 curl -f http://localhost:8003/health && echo "APP OK"
-curl -s http://localhost:8003/health/demo | python3 -m json.tool  # demo_ready + hint
-docker compose logs web | grep -E "DEMO USER|DEPLOY COMPLETE|HEALTH"
+curl -s http://localhost:8003/health/demo | python3 -m json.tool
 # test login
 curl -c jar -b jar -L http://localhost:8003/users/signin -d "username=admin&password=Admin123!"
 ```
 
-Log esperado `entrypoint.sh` (ahora con aviso demo):
+Log esperado `entrypoint.sh`:
 ```
-=== RoutePlanner Entrypoint ===
->> Waiting for MySQL to be ready...
-  MySQL at db:3306/routeplanner is ready!
+=== RoutePlanner (single image) ===
+DATABASE_URL=sqlite:///routeplanner.db (default)
+>> Using SQLite (no external DB wait)
 >> Running migrations...
->> Ensuring all tables exist...
->> Seeding default admin user...
-  Successfully created admin user: admin / admin@routeplanner.local
->> Verifying demo user (AVISO deploy - ¿demo corriendo?)...
-  ✅ DEMO USER READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
+>> Ensuring tables...
+>> Seeding admin...
+  created admin: admin
+  ✅ DEMO READY: 'admin' / 'Admin123!' -> http://localhost:8003/users/signin
 ========================================
-  RoutePlanner DEPLOY COMPLETE
-  App:      http://localhost:8003
-  Health:   http://localhost:8003/health
-  Demo:     admin / Admin123!
+  RoutePlanner READY
+  App:   http://localhost:8003
 ========================================
->> Starting application on 0.0.0.0:8003
-  Using gunicorn
+>> Starting gunicorn on 0.0.0.0:8003
 ```
-Si ves `❌ DEMO USER PASSWORD MISMATCH` → `ADMIN_FORCE_RESET=true docker compose up -d` y luego `curl /health/demo`.
 
 ---
 
@@ -236,14 +253,15 @@ Si ves `❌ DEMO USER PASSWORD MISMATCH` → `ADMIN_FORCE_RESET=true docker comp
 
 ```bash
 cp .env.example .env
-# edita .env: SECRET_KEY, ENCRYPTION_KEY (genera: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"), ADMIN_PASSWORD, MYSQL_PASSWORD, etc.
+# edita .env: SECRET_KEY, ENCRYPTION_KEY (genera: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"), ADMIN_PASSWORD
 docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml logs -f web
 ```
 
 Notas:
-- `docker-compose.prod.yml` tiene `restart: always` y volumen separado `route-planner-prod_mysql_data`.
+- `docker-compose.prod.yml` misma imagen única, `restart: always`, volumen `sqlite_data`.
 - Para usar imagen prebuilt: descomenta `image: jorgearguello/route-planner:1.0` y comenta `build: .`.
+- Para BD externa en prod, define `DATABASE_URL=mysql+pymysql://...` o `postgresql+psycopg2://...` en `.env` o secretos del orquestador.
 - Detrás de proxy inverso (nginx/traefik) redirige a `8003`, activa TLS.
 - Cambia `ADMIN_PASSWORD` inmediatamente tras primer login.
 
@@ -253,12 +271,13 @@ Notas:
 
 | Síntoma | Causa / Solución |
 |---|---|
-| `RuntimeError: Either 'SQLALCHEMY_DATABASE_URI'...` | Código viejo sin fallback. Arreglado en `config.py`. Asegura `DATABASE_URL` o usa fallback SQLite. `docker compose` ya lo setea. |
-| `ValueError: ENCRYPTION_KEY must be set` / Fernet inválido | Viejo `dev_encryption_key` no es Fernet 44 chars. Ahora default `0A1glB0r_8tPpo8k9eeWZW3TXvkvCPpw1ZgBmsV5D6s=` funciona, o genera uno real con `Fernet.generate_key()`. |
-| `table users already exists` en `flask db upgrade` | BD creada vía `create_all` sin stamp Alembic. Arreglado: entrypoint hace `db.create_all()` + `flask db stamp head`. Ignorable. |
-| MySQL no listo / `pymysql` connection refused | `entrypoint.sh` espera 120s. Revisa `docker compose logs db`, que `MYSQL_USER`/`MYSQL_PASSWORD` coincidan con `DATABASE_URL`. `docker compose down -v` para BD limpia si cambiaste credenciales. |
-| Login `admin` falla / `demo_ready:false` | `curl http://localhost:8003/health/demo` muestra `hint`. `docker compose logs web \| grep DEMO` muestra `MISMATCH/NOT FOUND`. Prueba `ADMIN_FORCE_RESET=true docker compose up -d` o `docker compose exec web python seed.py` o `DATABASE_URL= uv run python seed.py` para SQLite local. Revisa `DATABASE_URL` en `.env` — para local sin Docker deja `DATABASE_URL=` vacío. |
+| `RuntimeError: Either 'SQLALCHEMY_DATABASE_URI'...` | Código viejo sin fallback. Arreglado en `config.py`. |
+| `ValueError: ENCRYPTION_KEY must be set` / Fernet inválido | Viejo `dev_encryption_key` no es Fernet válido. Ahora default funciona o genera uno real. |
+| `table users already exists` en `flask db upgrade` | BD creada vía `create_all` sin stamp. EntryPoint hace `db.create_all()` + `stamp head`. Ignorable. |
+| BD externa MySQL/Postgres no lista / connection refused | `entrypoint.sh` espera 60s solo si `DATABASE_URL` coincide. Revisa `docker logs web`, que `DATABASE_URL` sea alcanzable (para host local usa `host.docker.internal`). |
+| Login `admin` falla / `demo_ready:false` | `curl http://localhost:8003/health/demo` muestra `hint`. Prueba `ADMIN_FORCE_RESET=true docker compose up -d` o `docker compose exec web python seed.py`. |
 | Puerto `8003` ocupado | Cambia `ports: "8003:8003"` y `PORT` juntos, o `lsof -i :8003` / `docker ps`. |
+| Cambiar de SQLite a MySQL/Postgres después | Solo define `DATABASE_URL` y recrea: `DATABASE_URL=... docker compose up -d --force-recreate`. SQLite viejo queda en volumen `sqlite_data` (backup: `docker run --rm -v route-planner_sqlite_data:/data -v $(pwd):/backup ubuntu tar czf /backup/sqlite.tgz /data`). |
 
 ---
 
@@ -267,14 +286,15 @@ Notas:
 ```bash
 # requiere Python 3.13 + uv
 uv sync
-cp .env.example .env  # o dejar vacío -> fallback SQLite
+cp .env.example .env  # o dejar DATABASE_URL vacío -> fallback SQLite
 uv run python seed.py
 uv run python app.py          # http://localhost:8003 (o gunicorn)
-# o
-uv run gunicorn --bind 127.0.0.1:8003 app:app
+# o con BD externa local:
+DATABASE_URL=mysql+pymysql://user:pass@127.0.0.1:3306/routeplanner uv run python app.py
+DATABASE_URL=postgresql+psycopg2://user:pass@127.0.0.1:5432/routeplanner uv run python app.py
 ```
 
-Fallback `config.py` → no necesitas `DATABASE_URL` local; se crea `instance/routeplanner.db` (ignorado por `.dockerignore`/`.gitignore`).
+Fallback `config.py` → no necesitas `DATABASE_URL` local; se crea `instance/routeplanner.db` (ignorado).
 
 ---
 
@@ -282,14 +302,14 @@ Fallback `config.py` → no necesitas `DATABASE_URL` local; se crea `instance/ro
 ```
 RoutePlanner/
 ├── app.py                 # Flask app, init_db, register_routes, run
-├── config.py              # Config con defaults seguros
-├── entrypoint.sh          # wait DB, migrate, create_all, seed admin, gunicorn
+├── config.py              # Config con defaults + override DATABASE_URL
+├── entrypoint.sh          # wait condicional, migrate, create_all, seed, gunicorn
 ├── seed.py                # script seed standalone
-├── Dockerfile             # python:3.13-slim, uv, 8003, HEALTHCHECK, ENTRYPOINT
-├── docker-compose.yml     # dev: MySQL 8.0, 8003:8003, volumen mysql_data
-├── docker-compose.prod.yml# prod: restart always, env prod
-├── .env.example           # plantilla
-├── pyproject.toml / uv.lock
+├── Dockerfile             # imagen única: python:3.13-slim, uv, 8003, HEALTHCHECK
+├── docker-compose.yml     # un solo servicio + volumen sqlite_data
+├── docker-compose.prod.yml# prod: misma imagen, restart: always
+├── .env.example           # plantilla (DATABASE_URL vacío = SQLite)
+├── pyproject.toml / uv.lock  # incluye pymysql + psycopg2-binary
 ├── models/                # User, Location, API_Storage, RouteHistory, db/migrate
 ├── controllers/           # lógica negocio
 ├── routers/               # Blueprint endpoints
@@ -299,7 +319,7 @@ RoutePlanner/
 └── test/                  # scripts verify_*
 ```
 
-Ver `DEVELOPMENT.md` para guía profunda de desarrollador (arquitectura, migraciones, auth, algoritmo de grafo, contribución).
+Ver `DEVELOPMENT.md` para guía profunda.
 
 ---
 

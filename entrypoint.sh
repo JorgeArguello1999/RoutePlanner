@@ -3,264 +3,146 @@ set -e
 
 PORT=${PORT:-8003}
 HOST=${HOST:-0.0.0.0}
-FLASK_APP=${FLASK_APP:-app.py}
-
-echo "=== RoutePlanner Entrypoint ==="
-echo "HOST=$HOST PORT=$PORT"
-echo "DATABASE_URL=${DATABASE_URL:-sqlite:///routeplanner.db (fallback)}"
-
-# Ensure .venv exists (dev compose mounts host code over /app, hiding built venv)
-# Anonymous volume /app/.venv in docker-compose.yml will be empty on first run
-if [ ! -f "/app/.venv/bin/flask" ] || [ ! -f "/app/.venv/bin/gunicorn" ]; then
-  echo ">> .venv not found or incomplete (dev volume mount?), running uv sync..."
-  if uv sync --frozen --no-cache; then
-    echo "  uv sync completed"
-  else
-    echo "  WARNING: uv sync failed, trying fallback"
-    uv sync --frozen --no-cache || echo "  uv sync still failed, continuing (may fail later)"
-  fi
-fi
-# Ensure PATH includes venv (also set via Dockerfile ENV)
 export PATH="/app/.venv/bin:$PATH"
 export VIRTUAL_ENV="/app/.venv"
 
-# ---------------------------------------------------------
-# 1. Wait for database (MySQL primary, PostgreSQL fallback)
-# ---------------------------------------------------------
+echo "=== RoutePlanner (single image) ==="
+echo "HOST=$HOST PORT=$PORT"
+echo "DATABASE_URL=${DATABASE_URL:-sqlite:///routeplanner.db (default)}"
+
+mkdir -p /app/instance
+
+# --- 1. Wait for external DB only if needed ---
 if echo "${DATABASE_URL}" | grep -qi "mysql"; then
-  echo ">> Waiting for MySQL to be ready..."
+  echo ">> Waiting for MySQL..."
   uv run python << 'PYEOF'
 import os, time, sys
 from urllib.parse import urlparse
-
-url = os.getenv("DATABASE_URL", "")
-# urlparse needs scheme without '+'
-url_norm = url.replace("mysql+pymysql://", "mysql://", 1) if url.startswith("mysql+pymysql://") else url
-from urllib.parse import urlparse
+url = os.getenv("DATABASE_URL","")
+url_norm = url.replace("mysql+pymysql://","mysql://",1) if url.startswith("mysql+pymysql://") else url
 parsed = urlparse(url_norm)
-host = parsed.hostname or "db"
+host = parsed.hostname or "localhost"
 port = parsed.port or 3306
-user = parsed.username or os.getenv("MYSQL_USER", "user")
-passwd = parsed.password or os.getenv("MYSQL_PASSWORD", "password")
-database = parsed.path.lstrip("/") if parsed.path and len(parsed.path) > 1 else os.getenv("MYSQL_DATABASE", "routeplanner")
-
+user = parsed.username or "root"
+passwd = parsed.password or ""
+database = parsed.path.lstrip("/") or "routeplanner"
 try:
     import pymysql
 except ImportError:
-    print("pymysql not installed, skipping MySQL wait (will retry via SQLAlchemy)")
-    sys.exit(0)
-
-max_retries = 60
-for i in range(max_retries):
+    print("pymysql not installed, skipping wait"); sys.exit(0)
+for i in range(30):
     try:
         conn = pymysql.connect(host=host, port=port, user=user, password=passwd, database=database, connect_timeout=2)
-        conn.close()
-        print(f"  MySQL at {host}:{port}/{database} is ready!")
-        sys.exit(0)
+        conn.close(); print(f"  MySQL ready at {host}:{port}/{database}"); sys.exit(0)
     except Exception as e:
-        print(f"  [{i+1}/{max_retries}] MySQL not ready: {e}")
-        time.sleep(2)
-print("MySQL did not become ready in time", file=sys.stderr)
-sys.exit(1)
+        print(f"  [{i+1}/30] MySQL not ready: {e}"); time.sleep(2)
+print("MySQL not ready in time", file=sys.stderr); sys.exit(1)
 PYEOF
 elif echo "${DATABASE_URL}" | grep -qi "postgres"; then
-  echo ">> Waiting for PostgreSQL to be ready..."
+  echo ">> Waiting for PostgreSQL..."
   uv run python << 'PYEOF'
 import os, time, sys
 from urllib.parse import urlparse
 url = os.getenv("DATABASE_URL","")
 parsed = urlparse(url)
-host = parsed.hostname or "db"
+host = parsed.hostname or "localhost"
 port = parsed.port or 5432
 try:
     import psycopg2
 except ImportError:
-    print("psycopg2 not installed, skipping pg wait")
-    sys.exit(0)
-max_retries = 60
-for i in range(max_retries):
+    print("psycopg2 not installed, skipping wait"); sys.exit(0)
+for i in range(30):
     try:
         conn = psycopg2.connect(host=host, port=port, user=parsed.username, password=parsed.password, dbname=parsed.path.lstrip("/"))
-        conn.close()
-        print(f"  PostgreSQL at {host}:{port} ready")
-        sys.exit(0)
+        conn.close(); print(f"  PostgreSQL ready at {host}:{port}"); sys.exit(0)
     except Exception as e:
-        print(f"  [{i+1}/{max_retries}] pg not ready: {e}")
-        time.sleep(2)
-print("Postgres not ready", file=sys.stderr)
-sys.exit(1)
+        print(f"  [{i+1}/30] pg not ready: {e}"); time.sleep(2)
+print("Postgres not ready", file=sys.stderr); sys.exit(1)
 PYEOF
 else
-  echo ">> No MySQL/Postgres URL detected, skipping DB wait (likely SQLite)"
+  echo ">> Using SQLite (no external DB wait)"
 fi
 
-# ---------------------------------------------------------
-# 2. Run migrations (flask db upgrade)
-# ---------------------------------------------------------
+# --- 2. Migrations ---
 echo ">> Running migrations (flask db upgrade)..."
-if uv run flask db upgrade; then
-  echo "  Migrations applied successfully"
-else
-  echo "  WARNING: flask db upgrade failed, continuing (maybe no migrations needed)"
-fi
+uv run flask db upgrade 2>&1 | head -n 20 || echo "  (migrations warning, continuing)"
 
-# ---------------------------------------------------------
-# 3. Ensure all tables exist (covers missing migrations for locations/route_history)
-# ---------------------------------------------------------
-echo ">> Ensuring all tables exist (db.create_all)..."
+# --- 3. Ensure tables exist ---
+echo ">> Ensuring tables (db.create_all)..."
 uv run python << 'PYEOF'
 from app import app
 from models import db
 with app.app_context():
-    # import models to register metadata before create_all
     from models.users import User
     from models.api_storage import API_Storage
     from models.locations import Location
     from models.routes import RouteHistory
     db.create_all()
-    print("  db.create_all() completed - tables ensured")
+    print("  tables ensured")
 PYEOF
 
-# Try to stamp alembic to head so future `flask db upgrade` no longer fails on existing tables
-echo ">> Ensuring alembic version is stamped..."
-uv run flask db stamp head 2>&1 | head -n 20 || echo "  stamp head skipped (already stamped or not needed)"
-uv run flask db current 2>&1 | head -n 20 || true
+# stamp alembic to avoid repeated "already exists" warnings
+uv run flask db stamp head 2>&1 | head -n 5 || true
 
-# ---------------------------------------------------------
-# 4. Seed default admin user (idempotent, with all permissions)
-# ---------------------------------------------------------
-echo ">> Seeding default admin user..."
+# --- 4. Seed admin (idempotent) ---
+echo ">> Seeding admin..."
 uv run python << 'PYEOF'
 import os
 from app import app
 from models import db
 from models.users import User, UserRole
-
-admin_user = os.getenv("ADMIN_USERNAME", "admin")
-admin_email = os.getenv("ADMIN_EMAIL", "admin@routeplanner.local")
-admin_pass = os.getenv("ADMIN_PASSWORD", "Admin123!")
-# For compatibility also check CONFIG_ACCESS_KEY as fallback? No, that's config page key.
-
+admin_user = os.getenv("ADMIN_USERNAME","admin")
+admin_email = os.getenv("ADMIN_EMAIL","admin@routeplanner.local")
+admin_pass = os.getenv("ADMIN_PASSWORD","Admin123!")
 with app.app_context():
-    existing = User.query.filter_by(username=admin_user).first()
-    if existing:
-        print(f"  Admin user already exists: {existing.username} ({existing.role.value})")
-        # Ensure role is ADMIN and active
-        if existing.role != UserRole.ADMIN:
-            existing.role = UserRole.ADMIN
-            db.session.commit()
-            print(f"  Updated role to ADMIN for {existing.username}")
-        # Optionally update password if ADMIN_PASSWORD was changed and user asks? Keep existing to avoid surprises.
-        # But if env ADMIN_FORCE_RESET=true, reset password
-        if os.getenv("ADMIN_FORCE_RESET", "false").lower() == "true":
-            existing.password = admin_pass
-            db.session.commit()
-            print(f"  Password reset for {existing.username} (ADMIN_FORCE_RESET=true)")
+    u = User.query.filter_by(username=admin_user).first()
+    if u:
+        print(f"  admin exists: {u.username} ({u.role.value})")
+        if u.role != UserRole.ADMIN:
+            u.role = UserRole.ADMIN; db.session.commit(); print("  promoted to ADMIN")
+        if os.getenv("ADMIN_FORCE_RESET","false").lower() == "true":
+            u.password = admin_pass; db.session.commit(); print("  password reset via ADMIN_FORCE_RESET")
     else:
-        # Check by email as well to avoid duplicate email error
         by_email = User.query.filter_by(email=admin_email).first()
         if by_email:
-            print(f"  User with email {admin_email} already exists: {by_email.username}, promoting to ADMIN if needed")
-            by_email.role = UserRole.ADMIN
-            # Update password only if forcing
-            if os.getenv("ADMIN_FORCE_RESET", "false").lower() == "true":
-                by_email.password = admin_pass
-            db.session.commit()
+            by_email.role = UserRole.ADMIN; db.session.commit(); print(f"  promoted existing email {admin_email} to ADMIN")
         else:
-            try:
-                new_admin = User(username=admin_user, email=admin_email, password=admin_pass, role=UserRole.ADMIN)
-                new_admin.is_active = True
-                db.session.add(new_admin)
-                db.session.commit()
-                print(f"  Successfully created admin user: {admin_user} / {admin_email} with role ADMIN")
-                print(f"  Password: {admin_pass}  (change via ADMIN_PASSWORD env or UI)")
-            except Exception as e:
-                db.session.rollback()
-                print(f"  Failed to create admin user: {e}")
-    # Summary
-    total = User.query.count()
-    admins = User.query.filter_by(role=UserRole.ADMIN).count()
-    print(f"  Total users: {total}, admins: {admins}")
-
+            new_admin = User(username=admin_user, email=admin_email, password=admin_pass, role=UserRole.ADMIN)
+            new_admin.is_active = True
+            db.session.add(new_admin); db.session.commit()
+            print(f"  created admin: {admin_user}")
+    print(f"  total users: {User.query.count()}")
 PYEOF
 
-echo ">> Database initialization complete"
-
-# ---------------------------------------------------------
-# 4b. Verify demo user can actually login (deploy notification)
-# ---------------------------------------------------------
-echo ">> Verifying demo user (deploy notification - is demo running?)..."
+# --- 5. Quick demo check ---
 uv run python << 'PYEOF'
 import os
 from app import app
 from models.users import User
-
-admin_user = os.getenv("ADMIN_USERNAME", "admin")
-admin_pass = os.getenv("ADMIN_PASSWORD", "Admin123!")
-port = os.getenv("PORT", "8003")
-
+admin_user=os.getenv("ADMIN_USERNAME","admin")
+admin_pass=os.getenv("ADMIN_PASSWORD","Admin123!")
 with app.app_context():
     try:
-        u = User.query.filter_by(username=admin_user).first()
-        if not u:
-            print("  ❌ DEMO USER NOT FOUND")
-            print(f"     Searched: '{admin_user}' does not exist in DB.")
-            print("     Cause: seeding failed or DB volume corrupted.")
-            print("     Fix: docker compose logs web | grep -i seed  -> check error")
-            print("          docker compose down -v && docker compose up --build  (reset clean DB)")
-            print(f"          or: docker compose exec web python seed.py")
+        u=User.query.filter_by(username=admin_user).first()
+        if u and u.is_active and u.check_password(admin_pass):
+            print(f"  ✅ DEMO READY: {admin_user} / {admin_pass} -> http://localhost:{os.getenv('PORT','8003')}/users/signin")
+        elif not u:
+            print(f"  ❌ demo missing: '{admin_user}' not found")
         elif not u.is_active:
-            print(f"  ❌ DEMO USER INACTIVE: '{u.username}' (is_active=False)")
-            print("     Fix: enable user in /configuration or DB: is_active=1")
-        elif not u.check_password(admin_pass):
-            print(f"  ❌ DEMO USER PASSWORD MISMATCH for '{admin_user}'")
-            print(f"     User exists (role={u.role.value}, email={u.email}) but password in DB does NOT match ADMIN_PASSWORD='{admin_pass}'")
-            print("     Cause: user already existed with different password (not overwritten for security).")
-            print("     Fixes:")
-            print("       1) Login with the old password if you remember it,")
-            print("       2) ADMIN_FORCE_RESET=true docker compose up -d   -> resets password to .env value")
-            print("       3) docker compose exec web python -c \"from app import app; from models import db; from models.users import User; import os; u=User.query.filter_by(username=os.getenv('ADMIN_USERNAME','admin')).first(); u.password=os.getenv('ADMIN_PASSWORD','Admin123!'); db.session.commit(); print('reset ok')\"")
+            print(f"  ❌ demo inactive: '{admin_user}'")
         else:
-            print(f"  ✅ DEMO USER READY: '{admin_user}' / '{admin_pass}'")
-            print(f"     Role: {u.role.value} | Email: {u.email} | ID: {u.id}")
-            print(f"     Login: http://localhost:{port}/users/signin")
-            print(f"     Health: curl http://localhost:{port}/health/demo | jq")
-        # Summary for health endpoint
-        total = User.query.count()
-        print(f"  [demo-check] total_users={total} demo_ready={bool(u and u.is_active and u.check_password(admin_pass))}")
+            print(f"  ❌ demo password mismatch for '{admin_user}' (hint: ADMIN_FORCE_RESET=true)")
     except Exception as e:
-        print(f"  ❌ DEMO CHECK ERROR: {e}")
-        import traceback; traceback.print_exc()
-        print("     Hint: DB connected? Tables created? Check: flask db current && db.create_all() logs above")
-
+        print(f"  demo check error: {e}")
 PYEOF
 
-# Final banner highly visible for deploy
-echo ""
 echo "========================================"
-echo "  RoutePlanner DEPLOY COMPLETE"
-echo "  App:      http://localhost:${PORT}"
-echo "  Health:   http://localhost:${PORT}/health"
-echo "  Demo chk: curl http://localhost:${PORT}/health/demo"
-echo "  Login:    http://localhost:${PORT}/users/signin"
-echo "  Demo:     ${ADMIN_USERNAME:-admin} / ${ADMIN_PASSWORD:-Admin123!}"
+echo "  RoutePlanner READY"
+echo "  App:   http://localhost:${PORT}"
+echo "  Health: http://localhost:${PORT}/health"
+echo "  Login: http://localhost:${PORT}/users/signin (${ADMIN_USERNAME:-admin} / ${ADMIN_PASSWORD:-Admin123!})"
 echo "========================================"
-echo ""
-echo "  If demo NOT working, check:"
-echo "    docker compose logs web | grep -A2 -i demo"
-echo "    curl http://localhost:${PORT}/health/demo | python3 -m json.tool"
-echo "    docker compose exec web python seed.py"
-echo ""
 
-# ---------------------------------------------------------
-# 5. Start application
-# ---------------------------------------------------------
-echo ">> Starting application on $HOST:$PORT"
-# Use gunicorn in production if available, otherwise Flask dev server
-if command -v gunicorn >/dev/null 2>&1; then
-  echo "  Using gunicorn"
-  exec gunicorn --bind "$HOST:$PORT" --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile - app:app
-else
-  echo "  gunicorn not found, using 'uv run python app.py'"
-  exec uv run python app.py
-fi
+# --- 6. Start ---
+echo ">> Starting gunicorn on $HOST:$PORT"
+exec gunicorn --bind "$HOST:$PORT" --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile - app:app
