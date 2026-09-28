@@ -374,10 +374,116 @@
         return parseFloat((R * c).toFixed(2));
     }
 
+    // Public OSRM endpoint. HTTPS is required to avoid mixed-content blocking on HTTPS deployments.
+    const OSRM_BASE_URL = 'https://router.project-osrm.org';
+    const FALLBACK_ROUTE_STYLE = { color: '#dc3545', weight: 4, opacity: 0.8, dashArray: '8, 8' };
+    const ROAD_ROUTE_STYLE = { color: 'blue', weight: 4, opacity: 0.7 };
+
+    function safeParseLocation(rawValue) {
+        if (!rawValue) {
+            return null;
+        }
+        try {
+            return JSON.parse(rawValue);
+        } catch (error) {
+            console.error('Error parsing location value:', error);
+            return null;
+        }
+    }
+
+    function clearRouteLayers() {
+        if (currentRouteLine) {
+            map.removeLayer(currentRouteLine);
+            currentRouteLine = null;
+        }
+        if (midMarker) {
+            map.removeLayer(midMarker);
+            midMarker = null;
+        }
+    }
+
+    function buildOsrmUrl(locA, locMid, locB) {
+        const waypoints = locMid
+            ? `${locA.longitude},${locA.latitude};${locMid.longitude},${locMid.latitude};${locB.longitude},${locB.latitude}`
+            : `${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}`;
+        return `${OSRM_BASE_URL}/route/v1/driving/${waypoints}?overview=full&geometries=geojson`;
+    }
+
+    function getRoutePoints(locA, locMid, locB) {
+        const points = [[locA.latitude, locA.longitude]];
+        if (locMid) {
+            points.push([locMid.latitude, locMid.longitude]);
+        }
+        points.push([locB.latitude, locB.longitude]);
+        return points;
+    }
+
+    function addMidMarker(locMid) {
+        if (!locMid) {
+            return;
+        }
+        midMarker = L.marker([locMid.latitude, locMid.longitude], {
+            icon: L.divIcon({
+                className: 'bg-warning border border-dark rounded-circle',
+                iconSize: [12, 12]
+            })
+        }).addTo(map).bindPopup('Intermediate Point');
+    }
+
+    function drawFallbackRoute(routePoints, locMid, graphDistance, graphTimeStr, roadReason) {
+        clearRouteLayers();
+        currentRouteLine = L.polyline(routePoints, FALLBACK_ROUTE_STYLE).addTo(map);
+        addMidMarker(locMid);
+        const reasonText = roadReason ? `<br><span class="text-muted">Road route: ${roadReason}</span>` : '<br><span class="text-muted">Loading road route...</span>';
+        currentRouteLine.bindPopup(`
+            <b>Direct Route (Fallback)</b><br>
+            Distance: ${graphDistance} km<br>
+            Time: ~${graphTimeStr}
+            ${reasonText}
+        `).openPopup();
+        map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
+    }
+
+    function drawRoadRoute(geometry, locMid, distanceKm, durationStr, graphDistance, graphTimeStr) {
+        clearRouteLayers();
+        // OSRM returns a GeoJSON LineString geometry.
+        currentRouteLine = L.geoJSON(geometry, { style: ROAD_ROUTE_STYLE }).addTo(map);
+        addMidMarker(locMid);
+        currentRouteLine.bindPopup(`
+            <b>Road Route</b><br>
+            Distance: ${distanceKm} km<br>
+            Time: ${durationStr}<br>
+            <hr class="my-1">
+            <b>Graph (Direct)</b><br>
+            Distance: ${graphDistance} km<br>
+            Time: ~${graphTimeStr}
+        `).openPopup();
+        map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
+    }
+
+    function showRoadUnavailable(reason, routePoints, locMid, graphDistance, graphTimeStr) {
+        document.getElementById('distValue').innerText = `Unavailable (${reason})`;
+        document.getElementById('timeValue').innerText = '';
+        document.getElementById('distanceResult').style.display = 'block';
+        drawFallbackRoute(routePoints, locMid, graphDistance, graphTimeStr, reason);
+    }
+
+    function formatDuration(minutes) {
+        if (minutes < 60) {
+            return `${minutes} min`;
+        }
+        return `${(minutes / 60).toFixed(1)} hr`;
+    }
+
     function calculateDistance(e) {
         e.preventDefault();
-        const locA = JSON.parse(document.getElementById('pointA').value);
-        const locB = JSON.parse(document.getElementById('pointB').value);
+        const locA = safeParseLocation(document.getElementById('pointA').value);
+        const locB = safeParseLocation(document.getElementById('pointB').value);
+
+        if (!locA || !locB) {
+            alert('Please select both Point A and Point B.');
+            return;
+        }
 
         let locMid = null;
         const midVal = document.getElementById('pointMid').value;
@@ -387,9 +493,12 @@
             const lon = parseFloat(document.getElementById('midLon').value);
             if (!isNaN(lat) && !isNaN(lon)) {
                 locMid = { latitude: lat, longitude: lon, name: 'Custom Point' };
+            } else {
+                alert('Please enter valid intermediate coordinates.');
+                return;
             }
         } else if (midVal) {
-            locMid = JSON.parse(midVal);
+            locMid = safeParseLocation(midVal);
         }
 
         if (locA && locB) {
@@ -409,11 +518,15 @@
             }
 
             // Update Image
-            graphImg.src = `/graphs/locations.png?${baseParams}${extraParams}&t=${Date.now()}`;
+            if (graphImg) {
+                graphImg.src = `/graphs/locations.png?${baseParams}${extraParams}&t=${Date.now()}`;
+            }
 
             // Update PDF Link
             const exportBtn = document.getElementById('exportPdfBtn');
-            exportBtn.href = `/graphs/export_pdf?${baseParams}${extraParams}`;
+            if (exportBtn) {
+                exportBtn.href = `/graphs/export_pdf?${baseParams}${extraParams}`;
+            }
 
 
             // Calculate Graph Distance (Haversine)
@@ -431,8 +544,13 @@
             // Graph Time (60 km/h)
             const graphTimeHours = graphDistance / 60;
             const graphTimeMins = Math.round(graphTimeHours * 60);
-            const graphTimeStr = graphTimeMins < 60 ? `${graphTimeMins} min` : `${graphTimeHours.toFixed(1)} hr`;
+            const graphTimeStr = formatDuration(graphTimeMins);
             document.getElementById('graphTimeValue').innerText = `(~${graphTimeStr})`;
+
+            // Show results immediately with a loading state for the road route.
+            document.getElementById('distValue').innerText = 'Calculating...';
+            document.getElementById('timeValue').innerText = '';
+            document.getElementById('distanceResult').style.display = 'block';
 
             // Enable Save Button
             document.getElementById('saveTripBtn').style.display = 'inline-block';
@@ -458,16 +576,21 @@
                 estimated_time_min: graphTimeMins
             };
 
-            // OSRM Routing
-            let osrmUrl = '';
-            if (locMid) {
-                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locMid.longitude},${locMid.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
-            } else {
-                osrmUrl = `http://router.project-osrm.org/route/v1/driving/${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}?overview=full&geometries=geojson`;
-            }
+            const routePoints = getRoutePoints(locA, locMid, locB);
+
+            // Draw a direct fallback line immediately so the connection is always visible.
+            drawFallbackRoute(routePoints, locMid, graphDistance, graphTimeStr, null);
+
+            // OSRM Routing over HTTPS to avoid mixed-content blocking.
+            const osrmUrl = buildOsrmUrl(locA, locMid, locB);
 
             fetch(osrmUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`OSRM HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
                         const route = data.routes[0];
@@ -476,55 +599,24 @@
                         // OSRM Duration is in seconds
                         const durationSecs = route.duration;
                         const durationMins = Math.round(durationSecs / 60);
-                        const durationStr = durationMins < 60 ? `${durationMins} min` : `${(durationMins / 60).toFixed(1)} hr`;
+                        const durationStr = formatDuration(durationMins);
 
                         document.getElementById('distValue').innerText = `${distanceKm} km`;
                         document.getElementById('timeValue').innerText = `(${durationStr})`;
                         document.getElementById('distanceResult').style.display = 'block';
 
-                        // Draw Route
-                        if (currentRouteLine) map.removeLayer(currentRouteLine);
-                        if (midMarker) {
-                            map.removeLayer(midMarker);
-                            midMarker = null;
-                        }
-
-                        // OSRM returns GeoJSON LineString
-                        currentRouteLine = L.geoJSON(route.geometry, {
-                            style: { color: 'blue', weight: 4, opacity: 0.7 }
-                        }).addTo(map);
-
-                        // Add Mid Marker if exists
-                        if (locMid) {
-                            midMarker = L.marker([locMid.latitude, locMid.longitude], {
-                                icon: L.divIcon({
-                                    className: 'bg-warning border border-dark rounded-circle',
-                                    iconSize: [12, 12]
-                                })
-                            }).addTo(map).bindPopup('Intermediate Point');
-                        }
-
-                        currentRouteLine.bindPopup(`
-                            <b>Road Route</b><br>
-                            Distance: ${distanceKm} km<br>
-                            Time: ${durationStr}<br>
-                            <hr class="my-1">
-                            <b>Graph (Direct)</b><br>
-                            Distance: ${graphDistance} km<br>
-                            Time: ~${graphTimeStr}
-                        `).openPopup();
-                        map.fitBounds(currentRouteLine.getBounds(), { padding: [50, 50] });
+                        // Replace the fallback line with the accurate road geometry.
+                        drawRoadRoute(route.geometry, locMid, distanceKm, durationStr, graphDistance, graphTimeStr);
 
                     } else {
-                        alert('Could not calculate road route. Check connectivity.');
-                        document.getElementById('distValue').innerText = 'N/A';
-                        document.getElementById('distanceResult').style.display = 'block';
+                        const reason = (data && data.code) ? data.code : 'NoRoute';
+                        console.warn('OSRM could not calculate road route:', data);
+                        showRoadUnavailable(reason, routePoints, locMid, graphDistance, graphTimeStr);
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching route:', error);
-                    document.getElementById('distValue').innerText = 'Error';
-                    document.getElementById('distanceResult').style.display = 'block';
+                    console.error('Error fetching road route:', error);
+                    showRoadUnavailable('network error', routePoints, locMid, graphDistance, graphTimeStr);
                 });
         }
     }
