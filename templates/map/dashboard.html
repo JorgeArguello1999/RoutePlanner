@@ -375,7 +375,9 @@
     }
 
     // Public OSRM endpoint. HTTPS is required to avoid mixed-content blocking on HTTPS deployments.
+    // The backend proxy (/api/route) is tried first to avoid browser CORS and rate-limit issues.
     const OSRM_BASE_URL = 'https://router.project-osrm.org';
+    const BACKEND_ROUTE_URL = '/api/route';
     const FALLBACK_ROUTE_STYLE = { color: '#dc3545', weight: 4, opacity: 0.8, dashArray: '8, 8' };
     const ROAD_ROUTE_STYLE = { color: 'blue', weight: 4, opacity: 0.7 };
 
@@ -407,6 +409,74 @@
             ? `${locA.longitude},${locA.latitude};${locMid.longitude},${locMid.latitude};${locB.longitude},${locB.latitude}`
             : `${locA.longitude},${locA.latitude};${locB.longitude},${locB.latitude}`;
         return `${OSRM_BASE_URL}/route/v1/driving/${waypoints}?overview=full&geometries=geojson`;
+    }
+
+    function buildBackendPayload(locA, locMid, locB) {
+        const waypoints = [{ latitude: locA.latitude, longitude: locA.longitude }];
+        if (locMid) {
+            waypoints.push({ latitude: locMid.latitude, longitude: locMid.longitude });
+        }
+        waypoints.push({ latitude: locB.latitude, longitude: locB.longitude });
+        return { waypoints };
+    }
+
+    function isValidOsrmResponse(data) {
+        return data && data.code === 'Ok' && data.routes && data.routes.length > 0 && data.routes[0].geometry;
+    }
+
+    function renderRoadRoute(data, graphDistance, graphTimeStr, locMid) {
+        const route = data.routes[0];
+        const distanceKm = (route.distance / 1000).toFixed(2);
+        const durationMins = Math.round(route.duration / 60);
+        const durationStr = formatDuration(durationMins);
+        document.getElementById('distValue').innerText = `${distanceKm} km`;
+        document.getElementById('timeValue').innerText = `(${durationStr})`;
+        document.getElementById('distanceResult').style.display = 'block';
+        // Replace the fallback line with the accurate road geometry.
+        drawRoadRoute(route.geometry, locMid, distanceKm, durationStr, graphDistance, graphTimeStr);
+        return true;
+    }
+
+    async function fetchRoadRouteWithFallback(locA, locMid, locB, routePoints, graphDistance, graphTimeStr) {
+        // Plan A: backend proxy (same origin, no CORS or mixed-content issues).
+        try {
+            const proxyResponse = await fetch(BACKEND_ROUTE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(buildBackendPayload(locA, locMid, locB))
+            });
+            if (proxyResponse.ok) {
+                const proxyData = await proxyResponse.json();
+                if (isValidOsrmResponse(proxyData)) {
+                    renderRoadRoute(proxyData, graphDistance, graphTimeStr, locMid);
+                    return;
+                }
+                console.warn('Backend proxy could not build road route:', proxyData);
+            } else {
+                console.warn(`Backend proxy HTTP ${proxyResponse.status}, trying direct OSRM.`);
+            }
+        } catch (proxyError) {
+            console.warn('Backend proxy failed, trying direct OSRM:', proxyError);
+        }
+
+        // Plan B: direct public OSRM call over HTTPS.
+        try {
+            const directResponse = await fetch(buildOsrmUrl(locA, locMid, locB));
+            if (!directResponse.ok) {
+                throw new Error(`OSRM HTTP ${directResponse.status}`);
+            }
+            const directData = await directResponse.json();
+            if (isValidOsrmResponse(directData)) {
+                renderRoadRoute(directData, graphDistance, graphTimeStr, locMid);
+                return;
+            }
+            const reason = (directData && directData.code) ? directData.code : 'NoRoute';
+            console.warn('Direct OSRM could not calculate road route:', directData);
+            showRoadUnavailable(reason, routePoints, locMid, graphDistance, graphTimeStr);
+        } catch (error) {
+            console.error('Error fetching road route:', error);
+            showRoadUnavailable('network error', routePoints, locMid, graphDistance, graphTimeStr);
+        }
     }
 
     function getRoutePoints(locA, locMid, locB) {
@@ -581,43 +651,8 @@
             // Draw a direct fallback line immediately so the connection is always visible.
             drawFallbackRoute(routePoints, locMid, graphDistance, graphTimeStr, null);
 
-            // OSRM Routing over HTTPS to avoid mixed-content blocking.
-            const osrmUrl = buildOsrmUrl(locA, locMid, locB);
-
-            fetch(osrmUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`OSRM HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-                        const route = data.routes[0];
-                        const distanceKm = (route.distance / 1000).toFixed(2);
-
-                        // OSRM Duration is in seconds
-                        const durationSecs = route.duration;
-                        const durationMins = Math.round(durationSecs / 60);
-                        const durationStr = formatDuration(durationMins);
-
-                        document.getElementById('distValue').innerText = `${distanceKm} km`;
-                        document.getElementById('timeValue').innerText = `(${durationStr})`;
-                        document.getElementById('distanceResult').style.display = 'block';
-
-                        // Replace the fallback line with the accurate road geometry.
-                        drawRoadRoute(route.geometry, locMid, distanceKm, durationStr, graphDistance, graphTimeStr);
-
-                    } else {
-                        const reason = (data && data.code) ? data.code : 'NoRoute';
-                        console.warn('OSRM could not calculate road route:', data);
-                        showRoadUnavailable(reason, routePoints, locMid, graphDistance, graphTimeStr);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching road route:', error);
-                    showRoadUnavailable('network error', routePoints, locMid, graphDistance, graphTimeStr);
-                });
+            // Road routing: backend proxy first, direct HTTPS OSRM second.
+            fetchRoadRouteWithFallback(locA, locMid, locB, routePoints, graphDistance, graphTimeStr);
         }
     }
 
