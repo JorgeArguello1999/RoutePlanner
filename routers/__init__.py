@@ -11,6 +11,7 @@ from routers.configuration import configuration
 from routers.history import history_bp
 
 from routers.health import health
+from routers.routing import routing_bp
 
 def register_routes(app):
     app.register_blueprint(home_page)
@@ -22,3 +23,4 @@ def register_routes(app):
     app.register_blueprint(configuration)
     app.register_blueprint(history_bp)
     app.register_blueprint(health)
+    app.register_blueprint(routing_bp)
